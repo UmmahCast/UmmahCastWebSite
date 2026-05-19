@@ -2,7 +2,9 @@
 
 > Self-hosted live audio streaming for mosques. Free forever, as a sadaqah.
 
-UmmahCast is a community-driven platform that lets mosques broadcast live audio — khutbahs, lectures, Quran recitation, halaqas — straight to their community's browsers. No app to install. No subscription. No third-party trackers.
+UmmahCast is a community-driven platform that lets mosques broadcast live audio — khutbahs, lectures, Quran recitation, halaqas — straight to their community's browsers. No app to install. No subscription. No third-party tracking, marketing, or behavioral analytics.
+
+The only third party that necessarily sees connection metadata is **Cloudflare**, which terminates TLS and routes traffic to the origin server. Cloudflare's optional Web Analytics and behavioral-fingerprinting products are **not** enabled. Full disclosure on the [Privacy Policy](https://ummahcast.com/privacy).
 
 **Live at:** [ummahcast.com](https://ummahcast.com)
 
@@ -14,7 +16,7 @@ UmmahCast is a community-driven platform that lets mosques broadcast live audio 
 - **Multi-tenancy** — every mosque gets its own org-scoped space with rooms, schedules, recordings, branding, and team
 - **Push & email notifications** when a broadcast goes live (web push + double opt-in email + optional Telegram channel)
 - **Auto-recording** with broadcaster-controlled publish / unpublish
-- **Privacy-first analytics** — fixed allow-listed event counters, no IPs, no cookies, no third-party trackers
+- **Privacy-first analytics** — in-house, fixed allow-listed event counters; no IPs, no cookies, no behavioral profiles, no third-party tracking pipelines (Cloudflare's optional analytics products are disabled)
 - **Two-factor auth** for broadcasters (TOTP + backup codes), forced password rotation, emergency superadmin recovery actions
 - **PWA** — installable to home screen on iOS / Android / desktop
 
