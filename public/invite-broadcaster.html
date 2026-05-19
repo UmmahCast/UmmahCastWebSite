@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Set Up Your Broadcaster Account</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .setup { max-width: 480px; width: 100%; }
+    .form-field { margin-bottom: 1rem; }
+    .form-field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 500; }
+    .form-field input {
+      width: 100%; padding: 0.65rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 0.9rem; font-family: inherit;
+    }
+    .form-field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .form-field .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .invite-banner {
+      background: linear-gradient(135deg, rgba(45,138,78,0.1), rgba(201,168,76,0.05));
+      border: 1px solid rgba(45,138,78,0.3);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .invite-banner strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <main class="setup">
+    <h2>Set Up Your Broadcaster Account</h2>
+
+    <div id="loading" style="text-align:center; padding:2rem; color:var(--text-muted);">Verifying invitation…</div>
+
+    <div id="error-card" class="card" style="display:none; border-color:rgba(239,68,68,0.3);">
+      <h3 style="color:#ef4444; margin-top:0;">Invitation Invalid</h3>
+      <p style="font-size:0.9rem; color:var(--text-muted);" id="error-msg">This invitation link is invalid, has expired, or has already been used.</p>
+      <p style="margin:1rem 0 0;"><a href="/" style="color:var(--accent);">Go to UmmahCast</a></p>
+    </div>
+
+    <div class="card" id="setup-card" style="display:none;">
+      <div class="invite-banner">
+        <span id="inviter-line"></span>
+      </div>
+
+      <form id="setup-form" onsubmit="return submitSetup(event)">
+        <div class="form-field">
+          <label for="setup-username">Username</label>
+          <input type="text" id="setup-username" required maxlength="50" pattern="[a-zA-Z0-9_-]+" autocomplete="username">
+          <div class="hint">Letters, numbers, underscore, dash. Used for login.</div>
+        </div>
+        <div class="form-field">
+          <label>Display Name (set by your org leader)</label>
+          <input type="text" id="setup-display" disabled>
+          <div class="hint">This is how you'll be shown in the broadcaster dashboard. Contact your org leader to change it.</div>
+        </div>
+        <div class="form-field">
+          <label for="setup-password">Password</label>
+          <input type="password" id="setup-password" required minlength="8" maxlength="200" autocomplete="new-password">
+          <div class="hint">At least 8 characters.</div>
+        </div>
+        <div class="form-field">
+          <label for="setup-password2">Confirm Password</label>
+          <input type="password" id="setup-password2" required minlength="8" maxlength="200" autocomplete="new-password">
+        </div>
+        <div id="setup-error" style="color:var(--danger);font-size:0.85rem;margin-bottom:0.75rem;display:none;"></div>
+        <button type="submit" class="btn-primary" id="setup-submit">Create Account</button>
+      </form>
+    </div>
+
+    <div class="card" id="success-card" style="display:none; background:var(--accent); color:white; text-align:center;">
+      <h3 style="margin-top:0;">Account Created!</h3>
+      <p style="color:rgba(255,255,255,0.9); margin:0 0 1rem;">You're all set. Sign in to start broadcasting.</p>
+      <a href="/broadcaster-login" class="btn-secondary" style="background:white; color:var(--accent); border-color:white; display:inline-block; padding:0.5rem 1.25rem; text-decoration:none; border-radius:999px;">Sign In</a>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    const token = window.location.pathname.split('/').pop();
+
+    async function load() {
+      try {
+        const res = await fetch('/api/broadcaster-invite/' + token);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          document.getElementById('error-msg').textContent = err.error || document.getElementById('error-msg').textContent;
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error-card').style.display = 'block';
+          return;
+        }
+        const data = await res.json();
+        document.getElementById('inviter-line').innerHTML =
+          `<strong>${esc(data.inviterDisplayName)}</strong> invited you to broadcast for <strong>${esc(data.orgName)}</strong>.`;
+        document.getElementById('setup-display').value = data.invitedDisplayName;
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('setup-card').style.display = 'block';
+      } catch {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-card').style.display = 'block';
+      }
+    }
+
+    async function submitSetup(e) {
+      e.preventDefault();
+      const btn = document.getElementById('setup-submit');
+      const err = document.getElementById('setup-error');
+      err.style.display = 'none';
+      const username = document.getElementById('setup-username').value.trim();
+      const password = document.getElementById('setup-password').value;
+      const password2 = document.getElementById('setup-password2').value;
+      if (password !== password2) {
+        err.textContent = 'Passwords do not match';
+        err.style.display = 'block';
+        return false;
+      }
+      btn.disabled = true; btn.textContent = 'Creating...';
+      try {
+        const res = await fetch('/api/broadcaster-invite/' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (res.ok) {
+          document.getElementById('setup-card').style.display = 'none';
+          document.getElementById('success-card').style.display = 'block';
+        } else {
+          const e2 = await res.json().catch(() => ({}));
+          err.textContent = e2.error || 'Could not create account.';
+          err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Create Account';
+        }
+      } catch {
+        err.textContent = 'Network error.';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Create Account';
+      }
+      return false;
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+    load();
+  </script>
+</body>
+</html>

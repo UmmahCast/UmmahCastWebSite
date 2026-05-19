@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Broadcast</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+    <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/tos-gate.js" defer></script>
+  <script src="/js/password-gate.js" defer></script>
+  <style>
+    .page { display: flex; gap: 1rem; max-width: 860px; width: 100%; }
+    .main-panel { flex: 1; }
+    .chat-panel { width: 280px; display: flex; flex-direction: column; }
+    .chat-messages { flex: 1; overflow-y: auto; max-height: 400px; padding: 0.75rem; font-size: 0.85rem; }
+    .chat-messages .msg { margin-bottom: 0.5rem; }
+    .chat-messages .msg-user { font-weight: 600; color: var(--accent); }
+    .chat-messages .msg-text { color: var(--text); }
+    .chat-input { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--border); }
+    .chat-input input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; color: var(--text); font-size: 0.85rem; font-family: inherit; }
+    .chat-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .chat-input button { width: auto; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+    .room-picker-card { cursor: pointer; transition: border-color 0.15s; }
+    .room-picker-card:hover { border-color: var(--accent); }
+    .room-picker-card.active { border-color: var(--accent); }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .field input { width: 100%; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.9rem; font-family: inherit; }
+    .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    @media (max-width: 640px) { .page { flex-direction: column; } .chat-panel { width: 100%; } }
+    /* Mic-test active row: flex when shown, .hidden takes precedence to hide */
+    .mic-test-active { display: flex; }
+    .mic-test-active.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Room picker screen -->
+  <main class="container" id="room-picker-screen">
+    <h2>Select a Room</h2>
+
+    <div id="room-list"></div>
+
+    <button class="btn-stop" id="toggle-create-btn" style="font-size:0.85rem; margin-top:0.5rem;" onclick="toggleCreateRoom()">+ New Room</button>
+
+    <div class="card hidden" id="create-room-card" style="margin-top:0.75rem; border-style:dashed;">
+      <form id="create-room-form">
+        <div class="field">
+          <label for="new-room-name">Room Name</label>
+          <input type="text" id="new-room-name" placeholder="e.g. Friday Khutbah" required maxlength="200">
+        </div>
+        <div class="field">
+          <label for="new-room-slug">Room URL Slug</label>
+          <input type="text" id="new-room-slug" placeholder="e.g. friday-khutbah" required maxlength="50" pattern="[a-z0-9-]+">
+        </div>
+        <div class="field">
+          <label for="new-room-password">Password (optional)</label>
+          <input type="text" id="new-room-password" placeholder="Leave empty for public">
+        </div>
+        <div id="create-error" class="hidden" style="color:var(--accent); font-size:0.85rem; margin-bottom:0.75rem;"></div>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="submit" class="btn-live" style="font-size:0.85rem; padding:0.6rem;">Create</button>
+          <button type="button" class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" onclick="toggleCreateRoom()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <!-- Broadcast screen (shown after selecting room) -->
+  <div class="page" id="broadcast-screen" style="display:none;">
+    <div class="main-panel">
+      <h2 id="room-name">Broadcaster</h2>
+
+      <div class="card">
+        <div class="status" id="status">
+          <div class="dot" id="dot" aria-hidden="true"></div>
+          <span id="status-text">Ready to broadcast</span>
+        </div>
+
+        <div id="mic-test-area" style="margin-bottom:0.75rem;">
+          <button type="button" id="btn-mic-test" class="btn-secondary"
+            style="width:auto; padding:0.4rem 1rem; font-size:0.85rem; border-radius:999px;">
+            🎤 Test Microphone
+          </button>
+          <div id="mic-test-active" class="hidden mic-test-active" style="margin-top:0.5rem; align-items:center; gap:0.5rem;">
+            <canvas id="mic-meter" width="200" height="14" style="flex:1; max-width:240px; height:14px; background:var(--surface); border-radius:7px; display:block;"></canvas>
+            <span id="mic-meter-label" style="font-size:0.75rem; color:var(--text-muted); min-width:60px;">Listening…</span>
+            <button type="button" id="btn-mic-stop" class="btn-secondary" style="width:auto; padding:0.25rem 0.6rem; font-size:0.75rem;">Stop</button>
+          </div>
+        </div>
+        <button class="btn-live" id="btn-live">Go Live</button>
+        <button class="btn-stop hidden" id="btn-stop">Stop Broadcast</button>
+        <button class="btn-share hidden" id="btn-share" onclick="shareLive()" aria-label="Share live link"
+          style="margin-top:0.5rem; background:var(--green); color:#000; font-size:0.9rem;">
+          📤 Share Link
+        </button>
+
+        <div class="stats">
+          <div><span>Listeners</span>: <span id="listener-count">0</span></div>
+          <div><span>Time</span>: <span id="elapsed">00:00</span></div>
+        </div>
+
+        <div id="listeners-panel" style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+          <div class="collapsible-header" id="listeners-toggle">
+            <span style="font-size:0.85rem; font-weight:600;">👤 Who's Listening</span>
+            <span class="chevron">▼</span>
+          </div>
+          <div id="listeners-list" class="hidden" style="display:flex; flex-wrap:wrap; gap:0.35rem;"></div>
+        </div>
+      </div>
+
+      <!-- Recording publish prompt -->
+      <div class="card hidden" id="publish-card">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.75rem;">Recording saved</div>
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Want to publish this recording for listeners?
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <input type="text" id="recording-title" placeholder="Recording title (optional)"
+            style="width:100%; padding:0.5rem 0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;">
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn-live" style="font-size:0.85rem; padding:0.6rem;" onclick="publishRecording()">Publish</button>
+          <button class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" onclick="skipPublish()">Keep Private</button>
+        </div>
+      </div>
+
+      <!-- Schedule management (collapsible) -->
+      <div class="card" id="schedule-mgmt-card">
+        <div class="collapsible-header" onclick="toggleSchedule()">
+          <span style="font-size:0.85rem; font-weight:600;">Schedule <span id="sched-count" style="color:var(--text-muted); font-weight:400;"></span></span>
+          <span id="sched-chevron" class="chevron">▼</span>
+        </div>
+        <div id="schedule-mgmt-content" style="margin-top:0.75rem; display:none;">
+          <!-- Add event form -->
+          <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border);">
+            <select id="sched-category" style="flex:1; min-width:120px; padding:0.4rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
+            </select>
+            <input type="text" id="sched-custom-title" placeholder="Custom title (optional)" style="flex:1; min-width:120px; padding:0.4rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
+            <input type="datetime-local" id="sched-datetime" style="padding:0.4rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
+            <input type="number" id="sched-duration" placeholder="Min" value="60" min="1" max="480" style="width:60px; padding:0.4rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
+            <select id="sched-repeat" style="padding:0.4rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;" title="Repeat">
+              <option value="">No repeat</option>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+            <button class="btn-live" style="width:auto; padding:0.4rem 0.75rem; font-size:0.8rem; min-height:auto;" onclick="addEvent()">Add</button>
+          </div>
+          <div id="sched-repeat-detail" class="hidden" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem; padding:0.5rem 0.75rem; background:var(--surface); border-radius:var(--radius); font-size:0.75rem; align-items:center;">
+            <span style="color:var(--text-muted);">Repeats every:</span>
+            <span id="sched-repeat-weekly" class="hidden">
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="MON"> Mon</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="TUE"> Tue</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="WED"> Wed</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="THU"> Thu</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="FRI" checked> Fri</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="SAT"> Sat</label>
+              <label style="display:inline-flex;align-items:center;gap:0.2rem;margin-right:0.4rem;"><input type="checkbox" value="SUN"> Sun</label>
+            </span>
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:0.25rem;color:var(--text-muted);">
+              Until: <input type="date" id="sched-until" style="padding:0.25rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.75rem; font-family:inherit;">
+            </span>
+          </div>
+          <!-- Upcoming events list -->
+          <div id="sched-list"></div>
+          <!-- Category management -->
+          <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Manage Categories</div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+              <input type="text" id="new-cat-name" placeholder="New category name" style="flex:1; padding:0.35rem 0.5rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
+              <button class="btn-stop" style="width:auto; padding:0.35rem 0.6rem; font-size:0.8rem; min-height:auto;" onclick="addCat()">Add</button>
+            </div>
+            <div id="cat-list" style="display:flex; flex-wrap:wrap; gap:0.35rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recordings management (collapsible) -->
+      <div class="card hidden" id="recordings-mgmt-card">
+        <div class="collapsible-header" onclick="toggleRecordings()">
+          <span style="font-size:0.85rem; font-weight:600;">Recordings <span id="rec-count" style="color:var(--text-muted); font-weight:400;"></span></span>
+          <span id="rec-chevron" class="chevron">▼</span>
+        </div>
+        <div id="recordings-mgmt-list" style="margin-top:0.75rem; display:none;"></div>
+      </div>
+
+      <!-- Activity footnote — small, single-line, doesn't compete with the Go Live focus -->
+      <div id="activity-footnote" style="text-align:center; font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem; opacity:0.75;"></div>
+    </div>
+
+    <div class="chat-panel card" style="padding:0;">
+      <div style="padding:0.75rem; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+        <span>Chat</span>
+        <button type="button" id="chat-toggle-btn" class="btn-secondary" style="width:auto; padding:0.3rem 0.7rem; font-size:0.75rem; min-height:auto;" aria-pressed="false">Disable chat</button>
+      </div>
+      <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
+      <div class="chat-input" id="chat-input-row">
+        <input type="text" id="chat-text" placeholder="Type a message..." maxlength="500" aria-label="Chat message">
+        <button class="btn-primary" id="chat-send" style="width:auto;padding:0.5rem 1rem;font-size:0.85rem;">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('broadcast');</script>
+  <script>
+    // Org slug from URL (set on window so broadcast.js can read it)
+    window._orgSlug = window.location.pathname.replace(/^\//, '').split('/')[0] || 'default';
+
+    // Room picker logic
+    let selectedRoom = null;
+
+    async function loadRoomPicker() {
+      const rooms = await (await fetch(`/api/orgs/${window._orgSlug}/rooms`)).json();
+      const container = document.getElementById('room-list');
+      container.innerHTML = '';
+
+      rooms.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card room-picker-card';
+        const statusLabel = r.live ? `<span style="color:var(--accent);">● LIVE</span>` : `○ Offline`;
+        const deleteBtn = r.slug !== 'main' && !r.live ? `<button class="btn-del" data-slug="${esc(r.slug)}" style="width:auto; padding:0.5rem 0.6rem; font-size:0.8rem; background:transparent; color:var(--text-muted); min-height:auto;" title="Delete room">✕</button>` : '';
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong>${esc(r.name)}</strong>
+              ${r.hasPassword ? '<span style="font-size:0.75rem; color:var(--text-muted);"> (password)</span>' : ''}
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">
+                ${statusLabel}${r.listeners > 0 ? ` — ${r.listeners} listening` : ''}
+              </div>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              ${deleteBtn}
+              <button class="btn-live" style="width:auto; padding:0.5rem 1rem; font-size:0.85rem;" ${r.live ? 'disabled title="Already live"' : ''}>
+                ${r.live ? 'In Use' : 'Select'}
+              </button>
+            </div>
+          </div>`;
+        if (!r.live) {
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-del')) return;
+            selectRoom(r.slug, r.name);
+          });
+        }
+        const del = card.querySelector('.btn-del');
+        if (del) {
+          del.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!confirm(`Delete "${r.name}"? This will also delete its recordings and schedule.`)) return;
+            await fetch(`/api/orgs/${window._orgSlug}/rooms/${r.slug}`, { method: 'DELETE' });
+            loadRoomPicker();
+          });
+        }
+        container.appendChild(card);
+      });
+    }
+
+    function selectRoom(slug, name) {
+      selectedRoom = slug;
+      document.getElementById('room-picker-screen').style.display = 'none';
+      document.getElementById('broadcast-screen').style.display = 'flex';
+      // Set room in URL so broadcast.js picks it up
+      history.replaceState(null, '', `/${window._orgSlug}/broadcast?room=${slug}`);
+      window.currentRoom = slug;
+      window.currentRoomName = name;
+      // Init broadcast.js
+      if (typeof initBroadcast === 'function') initBroadcast(slug, name);
+    }
+
+    function backToRoomPicker() {
+      document.getElementById('broadcast-screen').style.display = 'none';
+      document.getElementById('room-picker-screen').style.display = 'block';
+      history.replaceState(null, '', `/${window._orgSlug || 'default'}/broadcast`);
+      // Disconnect WebSocket if connected
+      if (typeof disconnectBroadcast === 'function') disconnectBroadcast();
+      loadRoomPicker();
+    }
+    window.backToRoomPicker = backToRoomPicker;
+
+    // Auto-fill slug from name
+    document.getElementById('new-room-name').addEventListener('input', (e) => {
+      const slug = e.target.value.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 50);
+      document.getElementById('new-room-slug').value = slug;
+    });
+
+    document.getElementById('create-room-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('new-room-name').value.trim();
+      const slug = document.getElementById('new-room-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const password = document.getElementById('new-room-password').value.trim();
+      const errorEl = document.getElementById('create-error');
+      errorEl.classList.add('hidden');
+
+      const res = await fetch(`/api/orgs/${window._orgSlug}/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, name, password: password || undefined })
+      });
+
+      if (res.ok) {
+        document.getElementById('new-room-name').value = '';
+        document.getElementById('new-room-slug').value = '';
+        document.getElementById('new-room-password').value = '';
+        document.getElementById('create-room-card').classList.add('hidden');
+        document.getElementById('toggle-create-btn').classList.remove('hidden');
+        loadRoomPicker();
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.error || 'Failed to create room';
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    function toggleCreateRoom() {
+      const card = document.getElementById('create-room-card');
+      const btn = document.getElementById('toggle-create-btn');
+      card.classList.toggle('hidden');
+      btn.classList.toggle('hidden');
+    }
+    window.toggleCreateRoom = toggleCreateRoom;
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Check if room is in URL params (direct link)
+    const urlRoom = new URLSearchParams(location.search).get('room');
+    if (!urlRoom) {
+      loadRoomPicker();
+    }
+    // urlRoom handled after broadcast.js loads
+  </script>
+  <script src="/js/broadcast.js"></script>
+  <script>
+    // Now broadcast.js is loaded, selectRoom if URL has room param
+    if (new URLSearchParams(location.search).get('room')) {
+      const r = new URLSearchParams(location.search).get('room');
+      selectRoom(r, r);
+    }
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Broadcaster Login</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+    <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+</head>
+<body>
+  <main style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;width:100%;padding:1rem;">
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div style="font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;">UmmahCast</div>
+      <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">Broadcaster Login</div>
+    </div>
+
+    <div class="card" style="max-width:380px;width:100%;padding:2rem;">
+      <form id="login-form">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" required autocomplete="username" placeholder="Enter username">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" required autocomplete="current-password" placeholder="Enter password">
+        </div>
+        <div id="error" class="error-msg hidden"></div>
+        <button type="submit" class="btn-primary">Login</button>
+      </form>
+
+      <form id="totp-form" class="hidden">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;text-align:center;">
+          Enter the 6-digit code from your authenticator app.
+        </p>
+        <div class="field" id="totp-code-field">
+          <label for="totp-code">Authentication Code</label>
+          <input type="text" id="totp-code" inputmode="numeric" pattern="\d{6}" autocomplete="one-time-code" maxlength="6" placeholder="123456" autofocus>
+        </div>
+        <div class="field hidden" id="backup-code-field">
+          <label for="backup-code">Backup Code</label>
+          <input type="text" id="backup-code" maxlength="32" placeholder="XXXXXXXXXX" autocomplete="off">
+        </div>
+        <div id="totp-error" class="error-msg hidden"></div>
+        <button type="submit" class="btn-primary">Verify</button>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.75rem;text-align:center;">
+          <a href="#" id="toggle-backup" style="color:var(--accent);">Use a backup code instead</a>
+        </p>
+      </form>
+    </div>
+    <a href="/" class="btn-secondary" style="display:inline-flex;width:auto;padding:0.4rem 1rem;font-size:0.85rem;border-radius:var(--radius-pill);text-decoration:none;margin-top:1rem;">← Back to rooms</a>
+  </main>
+
+  <style>
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 1rem; font-family: inherit;
+    }
+    .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .error-msg { color: var(--accent); font-size: 0.85rem; margin-bottom: 1rem; text-align: center; }
+  </style>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('login');</script>
+  <script>
+    let pendingLoginToken = null;
+
+    async function finishLogin() {
+      const meRes = await fetch('/api/broadcaster/me');
+      const me = await meRes.json();
+      window.location.href = `/${me.orgSlug || 'default'}/broadcast`;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
+      errorEl.classList.add('hidden');
+
+      const res = await fetch('/api/broadcaster/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.totpRequired && data.loginToken) {
+          pendingLoginToken = data.loginToken;
+          document.getElementById('login-form').classList.add('hidden');
+          document.getElementById('totp-form').classList.remove('hidden');
+          setTimeout(() => document.getElementById('totp-code').focus(), 50);
+          return;
+        }
+        await finishLogin();
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.error || 'Login failed';
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('totp-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('totp-error');
+      errorEl.classList.add('hidden');
+      const usingBackup = !document.getElementById('backup-code-field').classList.contains('hidden');
+      const body = { loginToken: pendingLoginToken };
+      if (usingBackup) body.backupCode = document.getElementById('backup-code').value.trim();
+      else body.code = document.getElementById('totp-code').value.trim();
+
+      const res = await fetch('/api/broadcaster/login-totp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { await finishLogin(); return; }
+      const data = await res.json().catch(() => ({}));
+      errorEl.textContent = data.error || 'Verification failed';
+      errorEl.classList.remove('hidden');
+    });
+
+    document.getElementById('toggle-backup').addEventListener('click', (e) => {
+      e.preventDefault();
+      const codeField = document.getElementById('totp-code-field');
+      const backupField = document.getElementById('backup-code-field');
+      const link = document.getElementById('toggle-backup');
+      if (backupField.classList.contains('hidden')) {
+        codeField.classList.add('hidden');
+        backupField.classList.remove('hidden');
+        link.textContent = 'Use authenticator code instead';
+        document.getElementById('backup-code').focus();
+      } else {
+        codeField.classList.remove('hidden');
+        backupField.classList.add('hidden');
+        link.textContent = 'Use a backup code instead';
+        document.getElementById('totp-code').focus();
+      }
+    });
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+</body>
+</html>

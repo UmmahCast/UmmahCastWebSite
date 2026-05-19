@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Org Applications</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/tos-gate.js" defer></script>
+  <script src="/js/password-gate.js" defer></script>
+  <style>
+    .apps-page { max-width: 860px; width: 100%; }
+    .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-tab {
+      padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 600;
+      border-radius: var(--radius-pill); cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted); transition: all 0.15s;
+    }
+    .filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .app-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    }
+    .app-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; }
+    .app-title { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+    .app-slug { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; font-family: ui-monospace, monospace; }
+    .app-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+    .app-meta strong { color: var(--text); font-weight: 500; }
+    .app-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.6; padding: 0.5rem; background: var(--bg); border-radius: var(--radius); white-space: pre-wrap; }
+    .app-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .app-actions button { width: auto; padding: 0.4rem 0.85rem; font-size: 0.8rem; min-height: auto; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 600;
+      border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .badge.pending { background: rgba(234,179,8,0.15); color: #b88a08; }
+    .badge.approved { background: rgba(45,138,78,0.15); color: var(--accent); }
+    .badge.declined { background: rgba(239,68,68,0.15); color: #c82828; }
+    :root[data-theme="light"] .badge.pending { color: #b08400; }
+  </style>
+</head>
+<body>
+  <main class="apps-page">
+    <h2>📬 Org Applications</h2>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;" id="auth-status">Loading…</p>
+
+    <div id="auth-error" style="display:none; padding:1rem; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius); color:#ef4444; text-align:center;">
+      Superadmin access required. <a href="/" style="color:inherit;">Go home</a>.
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <div class="filter-bar">
+        <button class="filter-tab active" data-status="pending">Pending</button>
+        <button class="filter-tab" data-status="approved">Approved</button>
+        <button class="filter-tab" data-status="declined">Declined</button>
+        <button class="filter-tab" data-status="all">All</button>
+      </div>
+
+      <div id="apps-list"></div>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    let currentStatus = 'pending';
+
+    (async function () {
+      let me = null;
+      try { const res = await fetch('/api/broadcaster/me'); if (res.ok) me = await res.json(); } catch {}
+      if (!me?.isSuperadmin) {
+        document.getElementById('auth-status').style.display = 'none';
+        document.getElementById('auth-error').style.display = 'block';
+        return;
+      }
+      document.getElementById('auth-status').textContent = `Signed in as ${me.displayName}`;
+      document.getElementById('dashboard').style.display = 'block';
+
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.filter-tab').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          currentStatus = t.dataset.status;
+          load();
+        });
+      });
+      load();
+    })();
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+    async function load() {
+      const res = await fetch('/api/admin/applications?status=' + encodeURIComponent(currentStatus));
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = document.getElementById('apps-list');
+      if (data.applications.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:2rem; color:var(--text-muted);">No applications.</div>';
+        return;
+      }
+      list.innerHTML = data.applications.map(a => `
+        <div class="app-card" data-id="${a.id}">
+          <div class="app-head">
+            <div style="min-width:0; flex:1;">
+              <div class="app-title">${esc(a.org_name)}</div>
+              <div class="app-slug">slug: ${esc(a.proposed_slug)}</div>
+            </div>
+            <span class="badge ${a.status}">${esc(a.status)}</span>
+          </div>
+          <div class="app-meta">
+            <strong>${esc(a.contact_name)}</strong> &lt;${esc(a.contact_email)}&gt;
+            ${a.city ? ' · ' + esc(a.city) : ''}
+            <br>Submitted ${esc(new Date(a.created_at + 'Z').toLocaleString())}
+            ${a.reviewed_at ? `<br>Reviewed ${esc(new Date(a.reviewed_at + 'Z').toLocaleString())}` : ''}
+          </div>
+          ${a.description ? `<div class="app-desc">${esc(a.description)}</div>` : ''}
+          ${a.notes ? `<div class="app-desc" style="border-left:3px solid var(--accent);">Note: ${esc(a.notes)}</div>` : ''}
+          ${a.invite_token && a.status === 'approved' ? `<div class="app-meta">Invite link: <a href="/setup-broadcaster/${esc(a.invite_token)}" style="color:var(--accent);" target="_blank">setup-broadcaster/${esc(a.invite_token).slice(0,16)}…</a>${a.invite_consumed_at ? ' (consumed)' : ''}</div>` : ''}
+          ${a.status === 'pending' ? `
+            <div class="app-actions">
+              <button class="btn-primary" onclick="approve(${a.id})">Approve</button>
+              <button class="btn-stop" onclick="decline(${a.id})">Decline</button>
+            </div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    async function approve(id) {
+      if (!confirm('Approve this application? An invite email will be sent.')) return;
+      const res = await fetch(`/api/admin/applications/${id}/approve`, { method: 'POST' });
+      if (res.ok) { alert('Approved — invite email sent.'); load(); }
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Failed'); }
+    }
+    async function decline(id) {
+      const reason = prompt('Decline reason (optional, sent to applicant):');
+      if (reason === null) return;
+      const res = await fetch(`/api/admin/applications/${id}/decline`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) { alert('Declined.'); load(); }
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Failed'); }
+    }
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

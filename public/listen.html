@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Listen</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+    <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <link rel="stylesheet" href="/css/recording-player.css?v=5">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .page { display: flex; gap: 1rem; max-width: 860px; width: 100%; }
+    .main-panel { flex: 1; }
+    .side-panel { width: 300px; display: flex; flex-direction: column; gap: 1rem; }
+    .chat-panel { display: flex; flex-direction: column; flex: 1; }
+    .chat-messages { flex: 1; overflow-y: auto; max-height: 300px; padding: 0.75rem; font-size: 0.85rem; }
+    .chat-messages .msg { margin-bottom: 0.5rem; }
+    .chat-messages .msg-user { font-weight: 600; }
+    .chat-messages .msg-text { color: var(--text); }
+    .chat-input { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--border); }
+    .chat-input input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; color: var(--text); font-size: 0.85rem; font-family: inherit; }
+    .chat-input input:focus { outline: none; border-color: var(--accent); }
+    .chat-input button { width: auto; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+    .reactions { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+    .reactions button { width: auto; padding: 0.5rem 0.75rem; font-size: 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; transition: transform 0.1s; position: relative; }
+    .reactions button:active { transform: scale(1.3); }
+    .reactions button .count { font-size: 0.65rem; position: absolute; top: -6px; right: -6px; background: var(--accent); color: white; border-radius: 50%; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+    .room-logo { width: 48px; height: 48px; border-radius: var(--radius); object-fit: cover; }
+    .room-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+    .schedule-item { font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .schedule-item strong { color: var(--text); }
+    .recording-item { font-size: 0.8rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .recording-item a { color: var(--accent); }
+    .name-prompt { text-align: center; }
+    .name-prompt input, .password-prompt input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; color: var(--text); font-size: 0.9rem; width: 200px; text-align: center; margin-bottom: 0.75rem; font-family: inherit; }
+    .name-prompt input:focus, .password-prompt input:focus { outline: none; border-color: var(--accent); }
+    .float-reaction { position: fixed; font-size: 1.5rem; pointer-events: none; animation: floatUp 1.5s ease-out forwards; z-index: 999; }
+    @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-120px) scale(1.5); } }
+    @media (max-width: 640px) { .page { flex-direction: column; } .side-panel { width: 100%; } }
+  </style>
+</head>
+<body>
+  <!-- Name prompt -->
+  <div class="container" id="name-screen">
+    <h2 id="room-title-prompt">Join Stream</h2>
+    <div class="card name-prompt">
+      <div style="margin-bottom:0.75rem; color:var(--gold, #c9a84c); font-size:1.1rem; font-style:italic;">بسم الله الرحمن الرحيم</div>
+      <div style="margin-bottom:0.5rem; color:var(--text-muted); font-size:0.85rem;">As-salamu alaykum! What should we call you?</div>
+      <input type="text" id="name-input" placeholder="Your name" maxlength="30"><br>
+      <div id="password-section" class="hidden password-prompt" style="margin-top:0.75rem;">
+        <div style="margin-bottom:0.5rem; color:var(--text-muted); font-size:0.85rem;">Room password</div>
+        <input type="password" id="password-input" placeholder="Enter password"><br>
+      </div>
+      <button class="btn-live" style="margin-top:0.75rem;" onclick="joinRoom()">Join</button>
+    </div>
+  </div>
+
+  <!-- Player -->
+  <div class="page hidden" id="player-screen">
+    <div class="main-panel">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
+        <img class="room-logo hidden" id="room-logo" src="" alt="">
+        <h2 style="margin:0;" id="room-name"></h2>
+      </div>
+      <div class="room-desc hidden" id="room-desc"></div>
+
+      <div class="card">
+        <div class="status" id="status">
+          <div class="dot" id="dot"></div>
+          <span id="status-text">Connecting...</span>
+        </div>
+
+        <div id="player-area">
+          <audio id="audio" autoplay>Your browser does not support audio playback.</audio>
+          <canvas id="vu-canvas" width="320" height="48" aria-hidden="true"
+            style="width:100%; max-width:100%; height:48px; display:block; margin:0.5rem 0; border-radius:8px; background:transparent;"></canvas>
+          <div class="volume-row" style="display:flex; align-items:center; gap:0.5rem; margin-block:0.75rem;">
+            <label for="volume-slider" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">🔊</label>
+            <input type="range" id="volume-slider" min="0" max="200" value="100" step="5"
+              aria-label="Volume"
+              style="flex:1; accent-color:var(--accent); cursor:pointer;">
+            <span id="volume-label" style="font-size:0.8rem; color:var(--text-muted); min-width:35px;">100%</span>
+          </div>
+        </div>
+        <div class="stream-msg hidden" id="offline-msg">Stream is offline — you'll hear it when it starts</div>
+
+        <div style="display:flex; justify-content:center; margin-top:0.75rem;">
+          <button id="btn-share-listen" class="btn-secondary" onclick="shareStream()" aria-label="Share stream link"
+            style="width:auto; padding:0.4rem 1rem; font-size:0.85rem; border-radius:999px;">
+            📤 Share
+          </button>
+        </div>
+
+        <div class="reactions" id="reactions" role="group" aria-label="Reactions">
+          <button onclick="react('dua')" aria-label="React with dua">🤲<span class="count hidden" id="c-dua" aria-hidden="true">0</span></button>
+          <button onclick="react('mosque')" aria-label="React with mosque">🕌<span class="count hidden" id="c-mosque" aria-hidden="true">0</span></button>
+          <button onclick="react('tasbih')" aria-label="React with tasbih">📿<span class="count hidden" id="c-tasbih" aria-hidden="true">0</span></button>
+          <button onclick="react('crescent')" aria-label="React with crescent">☪️<span class="count hidden" id="c-crescent" aria-hidden="true">0</span></button>
+        </div>
+
+        <div class="stats">
+          <div>Listeners: <span id="listener-count">0</span></div>
+          <div>Time: <span id="elapsed">00:00</span></div>
+        </div>
+
+        <div id="listeners-panel" style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+          <div class="collapsible-header" id="listeners-toggle">
+            <span style="font-size:0.85rem; font-weight:600;">👤 Who's Listening</span>
+            <span class="chevron">▼</span>
+          </div>
+          <div id="listeners-list" class="hidden" style="display:flex; flex-wrap:wrap; gap:0.35rem;"></div>
+        </div>
+      </div>
+
+      <!-- Schedule with countdown -->
+      <div class="card hidden" id="schedule-card">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.5rem;">Upcoming</div>
+        <div id="countdown-banner" class="hidden" style="text-align:center; padding:0.75rem; margin-bottom:0.75rem; background:var(--bg); border-radius:var(--radius);">
+          <div style="font-size:0.85rem; color:var(--text-muted);" id="countdown-title"></div>
+          <div style="font-size:1.5rem; font-weight:700; color:var(--accent); margin-top:0.25rem;" id="countdown-timer"></div>
+        </div>
+        <div id="schedule-list"></div>
+      </div>
+
+      <!-- Recordings -->
+      <div class="card hidden" id="recordings-card">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.5rem;">Past Broadcasts</div>
+        <div id="recordings-list"></div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="chat-panel card" style="padding:0;">
+        <div style="padding:0.75rem; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:600;">Chat</div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input" id="chat-input-row">
+          <input type="text" id="chat-text" placeholder="Type a message..." maxlength="500">
+          <button class="btn-primary" id="chat-send" style="width:auto;padding:0.5rem 1rem;font-size:0.85rem;">Send</button>
+        </div>
+        <div id="chat-disabled-notice" style="display:none; padding:0.75rem; font-size:0.8rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border);">
+          🔇 Chat is disabled in this room.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/recording-player.js"></script>
+  <script>renderNav('listen');</script>
+  <script src="/js/listen.js"></script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+</body>
+</html>

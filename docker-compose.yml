@@ -1,0 +1,104 @@
+services:
+  livewave:
+    build: .
+    container_name: ummahcast
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - ummahcast-data:/app/data
+      - ummahcast-recordings:/app/recordings
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/data/livewave.db
+      - RECORDINGS_DIR=/app/recordings
+      - SESSION_SECRET=${SESSION_SECRET}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@ummahcast.local}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SUPERADMIN_USERNAME=${SUPERADMIN_USERNAME:-superadmin}
+      # SMTP chain (up to 8 providers, only configured ones are used)
+      - SMTP_FROM=${SMTP_FROM:-notifications@ummahcast.com}
+      - SMTP1_HOST=${SMTP1_HOST:-}
+      - SMTP1_PORT=${SMTP1_PORT:-587}
+      - SMTP1_USER=${SMTP1_USER:-}
+      - SMTP1_PASS=${SMTP1_PASS:-}
+      - SMTP1_NAME=${SMTP1_NAME:-brevo}
+      - SMTP1_DAILY_LIMIT=${SMTP1_DAILY_LIMIT:-300}
+      - SMTP2_HOST=${SMTP2_HOST:-}
+      - SMTP2_PORT=${SMTP2_PORT:-587}
+      - SMTP2_USER=${SMTP2_USER:-}
+      - SMTP2_PASS=${SMTP2_PASS:-}
+      - SMTP2_NAME=${SMTP2_NAME:-mailjet}
+      - SMTP2_DAILY_LIMIT=${SMTP2_DAILY_LIMIT:-200}
+      - SMTP3_HOST=${SMTP3_HOST:-}
+      - SMTP3_PORT=${SMTP3_PORT:-587}
+      - SMTP3_USER=${SMTP3_USER:-}
+      - SMTP3_PASS=${SMTP3_PASS:-}
+      - SMTP3_NAME=${SMTP3_NAME:-turbosmtp}
+      - SMTP3_DAILY_LIMIT=${SMTP3_DAILY_LIMIT:-200}
+      - SMTP4_HOST=${SMTP4_HOST:-}
+      - SMTP4_PORT=${SMTP4_PORT:-587}
+      - SMTP4_USER=${SMTP4_USER:-}
+      - SMTP4_PASS=${SMTP4_PASS:-}
+      - SMTP4_NAME=${SMTP4_NAME:-mailtrap}
+      - SMTP4_DAILY_LIMIT=${SMTP4_DAILY_LIMIT:-150}
+      - SMTP5_HOST=${SMTP5_HOST:-}
+      - SMTP5_PORT=${SMTP5_PORT:-587}
+      - SMTP5_USER=${SMTP5_USER:-}
+      - SMTP5_PASS=${SMTP5_PASS:-}
+      - SMTP5_NAME=${SMTP5_NAME:-resend}
+      - SMTP5_DAILY_LIMIT=${SMTP5_DAILY_LIMIT:-100}
+      - SMTP6_HOST=${SMTP6_HOST:-}
+      - SMTP6_PORT=${SMTP6_PORT:-587}
+      - SMTP6_USER=${SMTP6_USER:-}
+      - SMTP6_PASS=${SMTP6_PASS:-}
+      - SMTP6_NAME=${SMTP6_NAME:-elasticemail}
+      - SMTP6_DAILY_LIMIT=${SMTP6_DAILY_LIMIT:-100}
+      - SMTP7_HOST=${SMTP7_HOST:-}
+      - SMTP7_PORT=${SMTP7_PORT:-587}
+      - SMTP7_USER=${SMTP7_USER:-}
+      - SMTP7_PASS=${SMTP7_PASS:-}
+      - SMTP7_NAME=${SMTP7_NAME:-mailgun}
+      - SMTP7_DAILY_LIMIT=${SMTP7_DAILY_LIMIT:-100}
+      - SMTP8_HOST=${SMTP8_HOST:-}
+      - SMTP8_PORT=${SMTP8_PORT:-587}
+      - SMTP8_USER=${SMTP8_USER:-}
+      - SMTP8_PASS=${SMTP8_PASS:-}
+      - SMTP8_NAME=${SMTP8_NAME:-smtp2go}
+      - SMTP8_DAILY_LIMIT=${SMTP8_DAILY_LIMIT:-200}
+    networks:
+      - ummahcast-net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ummahcast-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - ummahcast-net
+    depends_on:
+      - livewave
+
+volumes:
+  ummahcast-data:
+  ummahcast-recordings:
+
+networks:
+  ummahcast-net:
+    driver: bridge

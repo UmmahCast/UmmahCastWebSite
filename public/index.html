@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Mosque Live Audio</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <link rel="stylesheet" href="/css/recording-player.css?v=5">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    /* Editorial-asymmetric hero — left-aligned, generous padding, muqarnas backdrop, sharp corners */
+    .hero {
+      text-align: left;
+      padding: 4rem 2rem 3.5rem;
+      max-width: 860px;
+      margin: 0 auto;
+      border-radius: var(--radius-sharp);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-bismillah {
+      color: var(--gold);
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-style: normal;
+      margin-bottom: 1.75rem;
+      letter-spacing: 0.02em;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero-tagline {
+      font-family: var(--font-body);
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 2.25rem;
+      max-width: 520px;
+    }
+    .hero-cta { display: flex; gap: 0.75rem; justify-content: flex-start; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .hero-cta .btn-primary, .hero-cta .btn-secondary { width: auto; padding: 0.85rem 2rem; font-size: 1rem; border-radius: var(--radius-sharp); }
+    .hero-note { font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .sample-broadcast {
+      max-width: 720px;
+      margin: 0 auto 2rem;
+      padding: 0 1rem;
+      width: 100%;
+    }
+    .sample-broadcast-inner {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--gold, #c9a84c) 14%, transparent), transparent 70%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .sample-broadcast-label {
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+    .sample-broadcast-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sample-broadcast-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.2rem;
+    }
+    .sample-broadcast-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      max-width: 700px;
+      margin: 0 auto 2.5rem;
+      padding: 0 1rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .feature-card h3 { font-size: 0.9rem; margin: 0 0 0.35rem; }
+    .feature-card p { font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+    .section-heading {
+      text-align: center;
+      font-size: 1.15rem;
+      margin-bottom: 1rem;
+    }
+
+    .live-rooms {
+      max-width: 700px;
+      width: 100%;
+      margin: 0 auto 2.5rem;
+      padding: 0 1rem;
+      box-sizing: border-box;
+    }
+    #orgs-list { width: 100%; }
+    .live-rooms .room-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .live-rooms .room-card:hover { border-color: var(--accent); }
+    .live-rooms .room-card .btn-primary { flex-shrink: 0; }
+    .room-card-info { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
+    .room-card-text { min-width: 0; flex: 1; }
+    .room-card-logo { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .room-card-name { font-weight: 600; font-size: 0.9rem; }
+    .room-card-org { font-size: 0.75rem; color: var(--text-muted); }
+    .empty-rooms { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 2rem 1rem; }
+
+    .community-section {
+      max-width: 640px;
+      margin: 0 auto 2.5rem;
+      padding: 0 1rem;
+      text-align: center;
+    }
+    .community-section p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+    }
+    .community-section .btn-secondary { width: auto; padding: 0.6rem 1.5rem; }
+
+    @media (max-width: 480px) {
+      .hero { padding: 2.5rem 1.25rem 2rem; }
+      .hero h1 { font-size: 2rem; }
+      .hero-bismillah { font-size: 1.25rem; }
+      .hero-tagline { font-size: 0.95rem; }
+      .features { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero -->
+  <section class="hero muqarnas-bg">
+    <div class="hero-bismillah">بسم الله الرحمن الرحيم</div>
+    <h1>Your Mosque,<br><span>Live in Your Ears</span></h1>
+    <p class="hero-tagline">
+      UmmahCast brings your mosque's live audio straight to your browser.
+      No app to install, no account needed. Just open the link and listen.
+    </p>
+    <div class="hero-cta">
+      <a href="/communities" class="btn-primary">Start Listening</a>
+      <a href="/apply" class="btn-secondary" data-track="apply_click">Get Your Mosque on UmmahCast</a>
+    </div>
+    <div class="hero-note">Free and open for all communities · Sadaqah, forever</div>
+  </section>
+  <div class="muqarnas-divider" aria-hidden="true"></div>
+
+  <!-- Sample broadcast — gives cold visitors something to hear immediately -->
+  <section class="sample-broadcast">
+    <div class="sample-broadcast-inner">
+      <div class="sample-broadcast-label">
+        <span class="sample-broadcast-icon" aria-hidden="true">🎧</span>
+        <div>
+          <div class="sample-broadcast-title">Hear how it sounds</div>
+          <div class="sample-broadcast-sub">A recitation of Surah Ar-Rahman by Sheikh AbdulBaset AbdulSamad (Mujawwad), played through the same UmmahCast player your community would use.</div>
+        </div>
+      </div>
+      <div id="sample-broadcast-host"></div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">🎧</div>
+      <h3>Live Audio</h3>
+      <p>Real-time streaming with low latency. Hear your mosque as if you were there.</p>
+    </div>
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">🔔</div>
+      <h3>Get Notified</h3>
+      <p>Push notifications when a broadcast starts. Never miss a session.</p>
+    </div>
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">🕌</div>
+      <h3>Multi-Mosque</h3>
+      <p>Each mosque gets its own space with rooms, schedules, and recordings.</p>
+    </div>
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">📱</div>
+      <h3>Works Everywhere</h3>
+      <p>Install as an app on your phone or just use the browser. No downloads.</p>
+    </div>
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">💬</div>
+      <h3>Live Chat & Reactions</h3>
+      <p>Engage with the community in real-time during broadcasts.</p>
+    </div>
+    <div class="feature-card muqarnas-corner">
+      <div class="feature-icon">🎙️</div>
+      <h3>Easy Broadcasting</h3>
+      <p>One click to go live. Built-in recording and schedule management.</p>
+    </div>
+  </section>
+
+  <div class="muqarnas-divider" aria-hidden="true"></div>
+
+  <!-- Live rooms / orgs -->
+  <section class="live-rooms" id="rooms">
+    <h2 class="section-heading">Communities</h2>
+    <div id="orgs-list"></div>
+    <div id="see-all-link" style="text-align:center; margin-top:1rem; display:none;">
+      <a href="/communities" class="btn-secondary" style="display:inline-block; padding:0.5rem 1.25rem; font-size:0.85rem; text-decoration:none; border-radius:999px;">See all communities →</a>
+    </div>
+  </section>
+
+  <div class="muqarnas-divider" aria-hidden="true"></div>
+
+  <!-- Community CTA -->
+  <section class="community-section">
+    <h2 class="section-heading">Built for the Ummah</h2>
+    <p>UmmahCast is built by the community, for the community. Whether you're a listener at home, a traveler missing your local masjid, or a mosque looking to reach more people — we're here to connect you.</p>
+    <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+      <a href="/contact" class="btn-secondary">Share Feedback</a>
+      <a href="/timeline" class="btn-secondary">Our Journey</a>
+    </div>
+  </section>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/recording-player.js"></script>
+  <script>renderNav('landing');</script>
+  <script>
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Mount the sample broadcast player (Surah Ar-Rahman, hosted at /recordings/demo/)
+    if (window.RecordingPlayer) {
+      const samplePlayer = window.RecordingPlayer.create({
+        id: 0,
+        orgSlug: 'demo',
+        filename: 'ar-rahman.mp3',
+        title: 'Surah Ar-Rahman — AbdulBaset AbdulSamad (Mujawwad)',
+        durationSeconds: 0, // will populate from audio metadata
+        roomSlug: 'demo',
+        autoplay: false,
+        noShare: true,
+      });
+      document.getElementById('sample-broadcast-host')?.appendChild(samplePlayer);
+      // Track sample-play CTA so we know if the homepage demo is converting
+      let samplePlayLogged = false;
+      samplePlayer.addEventListener('click', (e) => {
+        if (samplePlayLogged) return;
+        if (e.target.closest('[data-act="play"]')) {
+          samplePlayLogged = true;
+          window.UCAnalytics?.track('sample_play', {});
+        }
+      });
+    }
+
+    function scrollToRooms(e) {
+      e.preventDefault();
+      document.getElementById('rooms').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function loadOrgs() {
+      const container = document.getElementById('orgs-list');
+      try {
+        const orgs = await (await fetch('/api/orgs')).json();
+        if (orgs.length === 0) {
+          container.innerHTML = '<div class="empty-rooms">No communities yet. <a href="/apply" style="color:var(--accent);">Get your mosque on UmmahCast</a></div>';
+          return;
+        }
+        // Live first, then alphabetical — show top 6 on hero, link to /communities for the rest
+        const sorted = orgs.slice().sort((a, b) => (b.anyLive - a.anyLive) || (a.name || '').localeCompare(b.name || ''));
+        const visible = sorted.slice(0, 6);
+        if (orgs.length > 6) document.getElementById('see-all-link').style.display = 'block';
+
+        visible.forEach(o => {
+          const card = document.createElement('div');
+          card.className = 'room-card';
+          card.setAttribute('role', 'link');
+          card.setAttribute('tabindex', '0');
+          const livePill = o.anyLive ? `<span style="display:inline-block;background:var(--live);color:white;padding:0.05rem 0.45rem;border-radius:999px;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:0.4rem;vertical-align:middle;">Live</span>` : '';
+          card.innerHTML = `
+            <div class="room-card-info">
+              ${o.logoUrl ? `<img class="room-card-logo" src="${esc(o.logoUrl)}" alt="">` : '<div class="room-card-logo" style="background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🕌</div>'}
+              <div class="room-card-text">
+                <div class="room-card-name">${esc(o.name)}${livePill}</div>
+                ${o.description ? `<div class="room-card-org">${esc(o.description)}</div>` : ''}
+              </div>
+            </div>
+            <button class="btn-primary" style="width:auto;padding:0.5rem 1.25rem;font-size:0.85rem;">${o.anyLive ? 'Listen' : 'Visit'}</button>`;
+          card.addEventListener('click', () => { window.location.href = '/' + o.slug; });
+          card.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.location.href = '/' + o.slug; });
+          container.appendChild(card);
+        });
+      } catch {
+        container.innerHTML = '<div class="empty-rooms">Could not load communities</div>';
+      }
+    }
+    loadOrgs();
+
+    // First-visit onboarding (listener / broadcaster path)
+    if (window.Onboarding) Onboarding.show({
+      onListen: () => document.getElementById('rooms')?.scrollIntoView({ behavior: 'smooth' }),
+    });
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

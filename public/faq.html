@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — FAQ</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>.faq { max-width: 640px; width: 100%; } .faq-item { border-bottom: 1px solid var(--border); } .faq-q { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--text); } .faq-q:hover { color: var(--accent); } .faq-q .chevron { transition: transform 0.2s; color: var(--text-muted); font-size: 0.8rem; } .faq-a { font-size: 0.85rem; color: var(--text-muted); line-height: 1.7; padding-bottom: 1rem; display: none; }</style>
+</head>
+<body>
+  <main class="faq">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What is UmmahCast? <span class="chevron">▼</span></div>
+      <div class="faq-a">UmmahCast is a free, self-hosted live audio streaming platform built for mosque communities. Broadcasters stream live audio (khutbahs, lectures, dhikr) and listeners tune in from any device with a web browser — no app download needed.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Do I need to create an account to listen? <span class="chevron">▼</span></div>
+      <div class="faq-a">No. Listeners don't need an account. Just visit the website, enter a display name, and join a room. Only broadcasters need login credentials.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">How do I get notified when a broadcast starts? <span class="chevron">▼</span></div>
+      <div class="faq-a">You have two options: enable push notifications in your browser (click the 🔔 button — no account or email needed), or sign up for email alerts (requires a verification step). You can also follow individual rooms by tapping the bell icon on any room card. See our <a href="/notifications-guide">Notification Setup Guide</a> for step-by-step instructions.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What email notifications can I get? <span class="chevron">▼</span></div>
+      <div class="faq-a">Three modes: <strong>Instant</strong> (an email each time a broadcast goes live), <strong>Daily digest</strong> (one summary email at a time you choose), or <strong>Pause</strong> (stay subscribed but receive nothing for now). You can also set quiet hours, choose a timezone, and pick which specific rooms you want notifications for. Manage everything from the link in any UmmahCast email — no login required.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">How do I stop email notifications? <span class="chevron">▼</span></div>
+      <div class="faq-a">Every email has a one-click "Unsubscribe" link in the footer. You can also use the "Manage Preferences" link to pause without fully unsubscribing, or visit the <a href="/notifications-guide">notifications page</a> and use "Find my preferences" if you've lost the link.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Why can't I enable notifications on my iPhone? <span class="chevron">▼</span></div>
+      <div class="faq-a">Apple requires you to add UmmahCast to your Home Screen first. Open the site in Safari, tap the Share button (↑), tap "Add to Home Screen", then open it from the Home Screen icon. The notification button will then work. See our <a href="/notifications-guide">detailed guide</a>.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Is my data private? <span class="chevron">▼</span></div>
+      <div class="faq-a">We collect the minimum needed to deliver the service. We don't collect phone numbers, location, tracking cookies, or analytics. Email addresses are stored only when you opt in (notifications, contact form), and you can unsubscribe in one click anytime. Chat messages aren't stored at all. Outgoing email is delivered through third-party SMTP providers acting as data processors, and traffic is routed through a third-party CDN for HTTPS and abuse protection. See our <a href="/privacy">Privacy Policy</a> for the complete picture.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Can broadcasters use two-factor authentication? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes. Broadcasters can enable 2FA from their settings page using any standard authenticator app. Once enabled, you'll be prompted for a 6-digit code after entering your password.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Can I listen on my phone? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes — UmmahCast works in any modern mobile browser (Safari, Chrome, Firefox). For the best experience, add it to your Home Screen — it will look and feel like a native app.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What is the audio quality? <span class="chevron">▼</span></div>
+      <div class="faq-a">Audio is streamed in Opus codec at up to 256 kbps — comparable to FM radio quality. The broadcaster can choose between Low (64 kbps), Standard (128 kbps), or High (256 kbps) quality. Typical latency is 1-2 seconds.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Can I listen to past broadcasts? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes, if the broadcaster has published the recording. Check the "Past Broadcasts" section on the room page. Not all broadcasts are recorded or published — that's up to the broadcaster.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">How many people can listen at once? <span class="chevron">▼</span></div>
+      <div class="faq-a">UmmahCast supports up to 200 concurrent listeners per room. Multiple rooms can stream simultaneously.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">My mosque wants to use UmmahCast. How do we get set up? <span class="chevron">▼</span></div>
+      <div class="faq-a"><a href="/apply">Submit an application</a> with your mosque's name and a contact person. After review, we'll email an invite link so you can set up your broadcaster account. Each community gets its own landing page, rooms, schedule, recordings, and notifications — fully separate from other organizations.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Can multiple people broadcast for our mosque? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes. The first person to set up your community becomes the org leader. They can invite teammates by email from their settings page — each invitee gets their own login and 2FA, and any of them can broadcast in any of your rooms. Leadership can be transferred at any time. Listeners just see your mosque name; they never see who's broadcasting individually.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Is two-factor authentication required? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes for broadcasters. New broadcasters have a 7-day window after their first login to set up 2FA in their settings; after that, account actions are restricted until it's enabled. Org leaders must enable 2FA before inviting team members. Standard authenticator apps (Google Authenticator, Authy, 1Password, etc.) work. Listeners don't need 2FA — listening is anonymous.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What happens to my email if I unsubscribe? <span class="chevron">▼</span></div>
+      <div class="faq-a">Unsubscribing immediately stops all emails. We mark your record as inactive but keep the same record so you can re-subscribe later via the same link without re-verifying. If you'd like your email permanently removed instead, contact us via the <a href="/contact">feedback form</a>.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Is UmmahCast free? <span class="chevron">▼</span></div>
+      <div class="faq-a">Yes. UmmahCast is open-source and self-hosted. There are no subscription fees, no ads, and no premium tiers.</div>
+    </div>
+
+    <div style="margin-top:2rem; text-align:center;">
+      <a href="/" class="btn-secondary" style="display:inline-flex;width:auto;padding:0.4rem 1rem;font-size:0.85rem;border-radius:var(--radius-pill);text-decoration:none;">← Back to UmmahCast</a>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    function toggleFaq(el) {
+      const answer = el.nextElementSibling;
+      const chevron = el.querySelector('.chevron');
+      const isOpen = answer.style.display === 'block';
+      answer.style.display = isOpen ? 'none' : 'block';
+      chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+    }
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

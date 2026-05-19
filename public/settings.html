@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Settings</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+    <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/tos-gate.js" defer></script>
+  <script src="/js/password-gate.js" defer></script>
+  <style>
+    .settings-grid { display:flex; flex-direction:column; gap:1rem; max-width:600px; width:100%; }
+    .section-title { font-size:0.85rem; font-weight:600; margin-bottom:0.5rem; }
+    .section-desc { font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem; }
+    .field { margin-bottom:0.75rem; }
+    .field label { display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.3rem; }
+    .field input { width:100%; padding:0.5rem 0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit; }
+    .field input:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+    .inline-btn { width:auto; padding:0.4rem 0.75rem; font-size:0.8rem; min-height:auto; }
+    .success-msg { color:var(--accent); font-size:0.8rem; margin-top:0.5rem; }
+    .error-msg { color:var(--danger); font-size:0.8rem; margin-top:0.5rem; }
+    .room-item { display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+    .cat-chip { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.5rem; background:var(--bg); border:1px solid var(--border); border-radius:999px; font-size:0.75rem; color:var(--text-muted); margin:0.15rem; }
+    .cat-chip .del { cursor:pointer; }
+    .cat-chip .del:hover { color:var(--text); }
+    .notif-channel { display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0; font-size:0.85rem; }
+    .badge { padding:0.15rem 0.5rem; border-radius:999px; font-size:0.7rem; font-weight:600; }
+    .badge-active { background:var(--accent); color:white; }
+    .badge-inactive { background:var(--border); color:var(--text-muted); }
+    .org-item { display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+    .team-row { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.6rem 0; border-bottom:1px solid var(--border); }
+    .team-row:last-child { border-bottom:none; }
+    .team-row.pending { opacity:0.75; }
+    .role-badge { display:inline-block; padding:0.1rem 0.45rem; border-radius:999px; font-size:0.6rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; }
+    .role-badge.leader { background:var(--gold-grad); color:var(--gold-grad-text); }
+    .role-badge.shared { background:var(--danger-soft); color:var(--danger); border:1px solid var(--danger-border); }
+    .role-badge.admin { background:linear-gradient(90deg,#6366f1,#8b5cf6); color:white; }
+    .role-badge.twofa { background:rgba(45,138,78,0.15); color:var(--accent); }
+    .role-badge.no-twofa { background:var(--warning-soft); color:var(--warning-text); }
+
+    /* Superadmin cards — visually distinct */
+    .admin-card {
+      border-color: rgba(99, 102, 241, 0.35);
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.04) 0%, transparent 60%), var(--surface);
+    }
+    .admin-header { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .admin-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+    .admin-action-row { display: flex; gap: 0.5rem; align-items: center; }
+    .section-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.25rem; }
+    .section-desc a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main class="settings-grid">
+    <h2>Settings</h2>
+
+    <!-- Account -->
+    <div class="card">
+      <div class="section-title">Account</div>
+      <div class="field">
+        <label for="display-name">Display Name</label>
+        <div style="display:flex; gap:0.5rem;">
+          <input type="text" id="display-name" maxlength="100">
+          <button class="btn-stop inline-btn" onclick="saveName()">Save</button>
+        </div>
+        <div id="name-msg" class="success-msg" style="display:none;"></div>
+      </div>
+      <div class="field">
+        <label>Change Password</label>
+        <input type="password" id="old-password" placeholder="Current password" style="margin-bottom:0.5rem;">
+        <input type="password" id="new-password" placeholder="New password (min 8 chars)">
+        <div style="margin-top:0.5rem;"><button class="btn-stop inline-btn" onclick="changePass()">Update Password</button></div>
+        <div id="pass-msg" class="success-msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Two-Factor Authentication -->
+    <div class="card" id="totp-card">
+      <div class="section-title">🔒 Two-Factor Authentication</div>
+      <div id="totp-banner" class="totp-banner"></div>
+      <div id="totp-status" style="margin-bottom:0.75rem; font-size:0.85rem; color:var(--text-muted);">Loading…</div>
+
+      <!-- Off state -->
+      <div id="totp-off" class="hidden">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Add an extra layer of security. After signing in with your password, you'll enter a 6-digit code from your authenticator app (Google Authenticator, Authy, 1Password, etc.).
+        </p>
+        <button class="btn-primary inline-btn" onclick="totpStartSetup()">Enable 2FA</button>
+      </div>
+
+      <!-- Setup flow -->
+      <div id="totp-setup" class="hidden">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">Scan this QR code with your authenticator app:</p>
+        <div class="qr-frame">
+          <img id="totp-qr" alt="2FA QR code" style="max-width:240px; height:auto;">
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;">Or enter this secret manually:</p>
+        <code id="totp-secret-display" style="display:block; padding:0.5rem; background:var(--bg); border-radius:var(--radius); font-family:ui-monospace,monospace; font-size:0.85rem; word-break:break-all; margin-bottom:0.75rem;"></code>
+        <div class="field">
+          <label for="totp-verify-code">Enter the 6-digit code shown in your app</label>
+          <input type="text" id="totp-verify-code" inputmode="numeric" maxlength="6" pattern="\d{6}" placeholder="123456">
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn-primary inline-btn" onclick="totpConfirmEnable()">Verify & Enable</button>
+          <button class="btn-stop inline-btn" onclick="totpCancelSetup()">Cancel</button>
+        </div>
+        <div id="totp-setup-msg" class="error-msg" style="display:none;"></div>
+      </div>
+
+      <!-- Backup codes display (after enable) -->
+      <div id="totp-backup-display" class="hidden">
+        <p style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;"><strong>Save these backup codes!</strong> Each can be used once if you lose access to your authenticator. They won't be shown again.</p>
+        <pre id="totp-backup-list" style="background:var(--bg); padding:0.75rem; border-radius:var(--radius); font-family:ui-monospace,monospace; font-size:0.95rem; line-height:1.8; text-align:center;"></pre>
+        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+          <button class="btn-stop inline-btn" onclick="totpDownloadBackups()">Download as .txt</button>
+          <button class="btn-primary inline-btn" onclick="totpDoneBackups()">I've saved them</button>
+        </div>
+      </div>
+
+      <!-- On state -->
+      <div id="totp-on" class="hidden">
+        <p style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;">✓ 2FA is enabled. <span id="totp-backup-count"></span></p>
+        <button class="btn-stop inline-btn" onclick="totpStartDisable()">Disable 2FA</button>
+
+        <div id="totp-disable" class="hidden" style="margin-top:0.75rem; padding:0.75rem; background:var(--bg); border-radius:var(--radius);">
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Confirm with your password and current 2FA code:</p>
+          <input type="password" id="totp-disable-pass" placeholder="Password" style="margin-bottom:0.5rem;">
+          <input type="text" id="totp-disable-code" inputmode="numeric" maxlength="6" placeholder="123456" style="margin-bottom:0.5rem;">
+          <div style="display:flex; gap:0.5rem;">
+            <button class="btn-stop inline-btn" onclick="totpConfirmDisable()">Disable</button>
+            <button class="btn-secondary inline-btn" onclick="document.getElementById('totp-disable').classList.add('hidden')">Cancel</button>
+          </div>
+          <div id="totp-disable-msg" class="error-msg" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rooms -->
+    <div class="card">
+      <div class="section-title">Rooms</div>
+      <div id="room-list"></div>
+      <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+        <input type="text" id="new-room-name" placeholder="New room name" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
+        <button class="btn-live inline-btn" onclick="createRoom()">Create</button>
+      </div>
+      <div id="room-msg" class="error-msg" style="display:none;"></div>
+    </div>
+
+    <!-- Categories -->
+    <div class="card">
+      <div class="section-title">Event Categories</div>
+      <div id="cat-list" style="margin-bottom:0.75rem;"></div>
+      <div style="display:flex; gap:0.5rem;">
+        <input type="text" id="new-cat-name" placeholder="New category" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
+        <button class="btn-stop inline-btn" onclick="addCat()">Add</button>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="card">
+      <div class="section-title">Notification Channels</div>
+      <div class="section-desc" style="margin-bottom:0.5rem;">When a broadcast goes live, listeners are notified through these channels.</div>
+      <div class="notif-channel"><span>🔔 Web Push</span><span class="badge badge-active">Active</span></div>
+      <div class="notif-channel"><span>📧 Email</span><span class="badge badge-active">Active</span></div>
+      <div class="notif-channel"><span>📢 Telegram (admin alerts)</span><span class="badge" id="tg-badge">—</span></div>
+    </div>
+
+    <!-- Mosque Branding (org leaders + superadmin) -->
+    <div class="card" id="branding-section" style="display:none;">
+      <div class="section-title">🕌 Mosque Branding</div>
+      <div class="section-desc">Upload a logo or photo of your mosque. After you upload, a moderator reviews it before it goes live on your community page. JPEG, PNG, or WebP — up to 5 MB.</div>
+
+      <div id="branding-current" style="display:flex; align-items:center; gap:0.75rem; margin:0.75rem 0;">
+        <img id="branding-preview" alt="" style="width:64px; height:64px; border-radius:12px; object-fit:cover; background:var(--bg); border:1px solid var(--border); display:none;">
+        <div id="branding-state" style="font-size:0.8rem; color:var(--text-muted);"></div>
+      </div>
+
+      <div id="branding-pending-banner" class="totp-banner" style="display:none;">
+        <strong>Pending review.</strong> Your new logo is queued. The current logo stays in place until a moderator approves the new one.
+        <button type="button" class="btn-stop inline-btn" style="margin-left:0.5rem;" onclick="cancelPendingLogo()">Cancel</button>
+      </div>
+
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none;">
+      <button type="button" class="btn-primary inline-btn" onclick="document.getElementById('logo-file-input').click()">📷 Upload New Logo</button>
+      <div id="branding-msg" class="success-msg" style="display:none;"></div>
+    </div>
+
+    <!-- Superadmin: Organizations -->
+    <div class="card admin-card" id="admin-section" style="display:none;">
+      <div class="admin-header">
+        <div class="admin-badge">SUPERADMIN</div>
+        <div class="section-title" style="margin-bottom:0.25rem;">🏛️ Organizations</div>
+        <div class="section-desc">Create and manage mosque communities. Each org gets isolated rooms, recordings, and broadcasters.</div>
+      </div>
+
+      <div id="org-list" style="margin-bottom:0.75rem;"></div>
+      <div class="admin-action-row">
+        <input type="text" id="new-org-name" placeholder="Organization name" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
+        <button class="btn-live inline-btn" onclick="createOrg()">+ Create Org</button>
+      </div>
+      <div id="org-msg" class="error-msg" style="display:none;"></div>
+    </div>
+
+    <!-- Superadmin: Broadcasters -->
+    <!-- Team Broadcasters card — visible to org leaders + superadmin -->
+    <div class="card" id="team-section" style="display:none;">
+      <div class="section-title">👥 Team Broadcasters</div>
+      <div class="section-desc" id="team-desc">Manage who can broadcast for this org.</div>
+      <!-- Org picker — superadmin only, lets them switch which org's team they're viewing -->
+      <div class="field" id="team-org-picker-field" style="display:none; margin-top:0.5rem;">
+        <label for="team-org-picker">Viewing team for</label>
+        <select id="team-org-picker" style="width:100%; padding:0.5rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;"></select>
+      </div>
+      <div id="team-list" style="margin:0.75rem 0;"></div>
+
+      <div id="invite-form" style="border-top:1px solid var(--border); padding-top:0.75rem; margin-top:0.5rem;">
+        <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.5rem;">Invite a new broadcaster</div>
+        <div class="field"><label>Email</label><input type="email" id="invite-email" placeholder="their@email.com" maxlength="200"></div>
+        <div class="field"><label>Display Name</label><input type="text" id="invite-display" placeholder="Their name (shown in dashboard)" maxlength="100"></div>
+        <div class="field" id="invite-org-field" style="display:none;"><label>Organization</label>
+          <select id="invite-org" style="width:100%; padding:0.5rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;"></select>
+        </div>
+        <!-- Account type selector — superadmin only, never shown to org leaders -->
+        <div class="field" id="invite-type-field" style="display:none;">
+          <label>Account type</label>
+          <div style="display:flex; flex-direction:column; gap:0.4rem;">
+            <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer; font-size:0.85rem;">
+              <input type="radio" name="invite-type" value="individual" checked style="margin-top:0.2rem;">
+              <span><strong>Individual</strong> — personal account with mandatory 2FA. Recommended.</span>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer; font-size:0.85rem; padding:0.5rem; background:var(--danger-soft); border:1px solid var(--danger-border); border-radius:var(--radius);">
+              <input type="radio" name="invite-type" value="shared" style="margin-top:0.2rem;">
+              <span><strong style="color:var(--danger);">Shared</strong> — security exception. No 2FA, broadcast-only, one per org. Use only when an org genuinely cannot maintain individual accounts.</span>
+            </label>
+          </div>
+        </div>
+        <button class="btn-primary inline-btn" onclick="sendInvite()">📨 Send Invite</button>
+        <div id="invite-msg" class="success-msg" style="display:none;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>
+    const pathParts = window.location.pathname.replace(/^\//, '').split('/');
+    const orgSlug = pathParts[0] || 'default';
+    window._orgSlug = orgSlug;
+    renderNav('settings');
+  </script>
+  <script>
+    let me = null;
+
+    async function init() {
+      const res = await fetch('/api/broadcaster/me');
+      if (!res.ok) { window.location.href = '/broadcaster-login'; return; }
+      me = await res.json();
+      // Shared accounts cannot manage settings — bounce them to the broadcast page
+      if (me.accountType === 'shared') {
+        window.location.href = `/${me.orgSlug || 'default'}/broadcast`;
+        return;
+      }
+      document.getElementById('display-name').value = me.displayName;
+      loadRooms();
+      loadCats();
+      checkTelegram();
+      if (me.isSuperadmin) {
+        document.getElementById('admin-section').style.display = 'block';
+        loadOrgs();
+      }
+      // Team Broadcasters card: visible to superadmin OR org leader of the current org
+      const canManageTeam = me.isSuperadmin || me.isOrgLeader;
+      if (canManageTeam) {
+        document.getElementById('team-section').style.display = 'block';
+        // Org leaders only invite within their own org — superadmin gets a picker + the shared option
+        if (me.isSuperadmin) {
+          document.getElementById('invite-org-field').style.display = 'block';
+          document.getElementById('invite-type-field').style.display = 'block';
+        }
+        loadTeam();
+      }
+
+      // Branding (logo upload) — visible to org leaders + superadmin
+      if (me.isOrgLeader || me.isSuperadmin) {
+        document.getElementById('branding-section').style.display = 'block';
+        loadBranding();
+        document.getElementById('logo-file-input').addEventListener('change', uploadLogo);
+      }
+    }
+
+    async function saveName() {
+      const name = document.getElementById('display-name').value.trim();
+      const msg = document.getElementById('name-msg');
+      const res = await fetch('/api/broadcaster/me', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName: name }) });
+      msg.style.display = 'block'; msg.textContent = res.ok ? 'Saved' : 'Error'; msg.className = res.ok ? 'success-msg' : 'error-msg';
+      setTimeout(() => msg.style.display = 'none', 2000);
+    }
+    window.saveName = saveName;
+
+    async function changePass() {
+      const old = document.getElementById('old-password').value;
+      const nw = document.getElementById('new-password').value;
+      const msg = document.getElementById('pass-msg');
+      if (nw.length < 8) { msg.style.display = 'block'; msg.textContent = 'Min 8 characters'; msg.className = 'error-msg'; return; }
+      const res = await fetch('/api/broadcaster/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldPassword: old, newPassword: nw }) });
+      const data = await res.json();
+      msg.style.display = 'block'; msg.textContent = res.ok ? 'Password updated' : (data.error || 'Error'); msg.className = res.ok ? 'success-msg' : 'error-msg';
+      if (res.ok) { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; }
+      setTimeout(() => msg.style.display = 'none', 3000);
+    }
+    window.changePass = changePass;
+
+    // Populated by loadRooms — keyed by slug. Used by deleteRoom() so names never
+    // enter an HTML attribute context (would be re-decoded by the parser → XSS).
+    const _roomsBySlug = new Map();
+
+    async function loadRooms() {
+      const rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json();
+      const list = document.getElementById('room-list');
+      list.innerHTML = '';
+      _roomsBySlug.clear();
+      rooms.forEach(r => {
+        _roomsBySlug.set(r.slug, r);
+        const div = document.createElement('div'); div.className = 'room-item';
+        // Slugs are constrained to [a-z0-9-]+ server-side, so safe in attribute context.
+        const del = r.slug !== 'main' ? `<button class="btn-stop inline-btn" onclick="deleteRoom('${esc(r.slug)}')" style="color:var(--text-muted);">✕</button>` : '<span style="font-size:0.7rem;color:var(--text-muted);">Default</span>';
+        div.innerHTML = `<span><strong>${esc(r.name)}</strong> <span style="font-size:0.75rem;color:var(--text-muted);">/${esc(r.slug)}</span>${r.hasPassword ? ' 🔒' : ''}</span>${del}`;
+        list.appendChild(div);
+      });
+    }
+
+    async function createRoom() {
+      const name = document.getElementById('new-room-name').value.trim();
+      const msg = document.getElementById('room-msg');
+      if (!name) return;
+      const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 50);
+      const res = await fetch(`/api/orgs/${orgSlug}/rooms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug, name }) });
+      if (res.ok) { document.getElementById('new-room-name').value = ''; msg.style.display = 'none'; loadRooms(); }
+      else { const d = await res.json(); msg.style.display = 'block'; msg.textContent = d.error; }
+    }
+    window.createRoom = createRoom;
+
+    async function deleteRoom(slug) {
+      const room = _roomsBySlug.get(slug);
+      const name = room ? room.name : slug;
+      if (!confirm(`Delete "${name}"?`)) return;
+      await fetch(`/api/orgs/${orgSlug}/rooms/${slug}`, { method: 'DELETE' });
+      loadRooms();
+    }
+    window.deleteRoom = deleteRoom;
+
+    async function loadCats() {
+      const cats = await (await fetch(`/api/orgs/${orgSlug}/categories`)).json();
+      const list = document.getElementById('cat-list');
+      list.innerHTML = '';
+      cats.forEach(c => {
+        const chip = document.createElement('span'); chip.className = 'cat-chip';
+        chip.innerHTML = `${esc(c.name)} <span class="del" onclick="deleteCat(${c.id})">✕</span>`;
+        list.appendChild(chip);
+      });
+    }
+
+    async function addCat() {
+      const input = document.getElementById('new-cat-name');
+      if (!input.value.trim()) return;
+      await fetch(`/api/orgs/${orgSlug}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: input.value.trim() }) });
+      input.value = ''; loadCats();
+    }
+    window.addCat = addCat;
+
+    async function deleteCat(id) {
+      await fetch(`/api/orgs/${orgSlug}/categories/${id}`, { method: 'DELETE' });
+      loadCats();
+    }
+    window.deleteCat = deleteCat;
+
+    async function checkTelegram() {
+      const badge = document.getElementById('tg-badge');
+      badge.textContent = 'Active'; badge.className = 'badge badge-active';
+    }
+
+    // Populated by loadOrgs — keyed by slug. deleteOrg/cancelOrgDeletion/confirmPermanentDelete
+    // look up the display name from here so user-controlled name strings never enter an HTML
+    // attribute (would be re-decoded by the parser and turn into executable JS).
+    const _orgsBySlug = new Map();
+
+    // Superadmin functions
+    async function loadOrgs() {
+      const orgs = await (await fetch('/api/orgs', { cache: 'no-store' })).json();
+      const list = document.getElementById('org-list');
+      list.innerHTML = '';
+      _orgsBySlug.clear();
+      orgs.forEach(o => {
+        _orgsBySlug.set(o.slug, o);
+        const div = document.createElement('div'); div.className = 'org-item';
+        div.dataset.slug = o.slug;
+        // Org in pending-deletion state — show banner + cancel/confirm-permanent buttons
+        if (o.pendingDeletionAt) {
+          const since = new Date(o.pendingDeletionAt + 'Z').toLocaleString();
+          div.innerHTML = `
+            <span class="org-display" style="display:flex;flex-direction:column;gap:0.2rem;">
+              <span><strong>${esc(o.name)}</strong> <span style="font-size:0.75rem;color:var(--text-muted);">/${esc(o.slug)}</span></span>
+              <span style="font-size:0.7rem;color:var(--warning-text,#b88a08);">⏳ Pending deletion since ${esc(since)}</span>
+            </span>
+            <span style="display:flex;gap:0.35rem;">
+              <button class="btn-stop inline-btn" onclick="cancelOrgDeletion('${o.slug}')" title="Abort the pending deletion">↶ Cancel</button>
+              <button class="btn-stop inline-btn" onclick="confirmPermanentDelete('${o.slug}')" style="color:var(--danger);" title="Permanently delete now">✕ Delete now</button>
+            </span>`;
+          list.appendChild(div);
+          return;
+        }
+        const editBtn = `<button class="btn-stop inline-btn" onclick="editOrgName('${o.slug}')" style="color:var(--text-muted);" title="Rename">✏️</button>`;
+        const brandBtn = `<button class="btn-stop inline-btn" onclick="toggleOrgBrandPanel('${o.slug}')" style="color:var(--text-muted);" title="Edit branding">🎨</button>`;
+        const delBtn = o.slug !== 'default'
+          ? `<button class="btn-stop inline-btn" onclick="deleteOrg('${o.slug}')" style="color:var(--text-muted);" title="Delete">✕</button>`
+          : '<span style="font-size:0.7rem;color:var(--text-muted);">Default</span>';
+        const metaParts = [];
+        if (o.leaderName) metaParts.push(`led by ${esc(o.leaderName)}`);
+        if (typeof o.memberCount === 'number') metaParts.push(`${o.memberCount} broadcaster${o.memberCount === 1 ? '' : 's'}`);
+        if (o.lastBroadcastAt) metaParts.push(`last broadcast ${relativeAgo(o.lastBroadcastAt)}`);
+        else if (o.lastBroadcastAt === null && typeof o.memberCount === 'number') metaParts.push('no broadcasts yet');
+        const metaLine = metaParts.length
+          ? `<span style="display:block;font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem;">${metaParts.join(' · ')}</span>`
+          : '';
+        div.innerHTML = `
+          <span class="org-display" style="display:flex;flex-direction:column;align-items:flex-start;">
+            <span><strong>${esc(o.name)}</strong> <span style="font-size:0.75rem;color:var(--text-muted);">/${esc(o.slug)}</span></span>
+            ${metaLine}
+          </span>
+          <span style="display:flex;gap:0.35rem;">${editBtn}${brandBtn}${delBtn}</span>`;
+        list.appendChild(div);
+        // Hidden brand-panel container (rendered on first toggle)
+        const brand = document.createElement('div');
+        brand.className = 'org-brand-panel hidden';
+        brand.dataset.slug = o.slug;
+        brand.style.cssText = 'padding:0.75rem 0.85rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin:0.25rem 0 0.75rem;';
+        brand.innerHTML = renderOrgBrandPanel(o);
+        list.appendChild(brand);
+      });
+    }
+
+    function renderOrgBrandPanel(o) {
+      return `
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Branding for ${esc(o.name)}</div>
+        <div class="field">
+          <label>Accent color</label>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <input type="color" id="brand-accent-${esc(o.slug)}" value="${esc(o.accentColor || '#2d8a4e')}" style="width:48px;height:32px;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;">
+            <button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','accentColor')">Save color</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Short description</label>
+          <textarea id="brand-desc-${esc(o.slug)}" maxlength="1000" rows="2" style="width:100%;padding:0.5rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.85rem;font-family:inherit;resize:vertical;">${esc(o.description || '')}</textarea>
+          <div style="margin-top:0.35rem;"><button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','description')">Save description</button></div>
+        </div>
+        <div class="field">
+          <label>Telegram chat ID (for org-specific notifications)</label>
+          <div style="display:flex;gap:0.5rem;">
+            <input type="text" id="brand-tg-${esc(o.slug)}" value="${esc(o.telegramChatId || '')}" maxlength="50" placeholder="-1001234567890" style="flex:1;padding:0.4rem 0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.85rem;font-family:ui-monospace,monospace;">
+            <button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','telegramChatId')">Save</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Upload logo (queues for review on /admin/photos)</label>
+          <input type="file" accept="image/png,image/jpeg,image/webp" id="brand-logo-${esc(o.slug)}" style="font-size:0.8rem;">
+          <button class="btn-stop inline-btn" onclick="uploadOrgLogo('${esc(o.slug)}')" style="margin-top:0.35rem;">📷 Upload logo</button>
+        </div>
+        <div id="brand-msg-${esc(o.slug)}" style="font-size:0.78rem;min-height:1em;margin-top:0.4rem;"></div>
+      `;
+    }
+
+    function toggleOrgBrandPanel(slug) {
+      document.querySelectorAll('.org-brand-panel').forEach(p => {
+        if (p.dataset.slug === slug) p.classList.toggle('hidden');
+        else p.classList.add('hidden');
+      });
+    }
+    window.toggleOrgBrandPanel = toggleOrgBrandPanel;
+
+    async function saveOrgBrand(slug, field) {
+      const msgEl = document.getElementById(`brand-msg-${slug}`);
+      msgEl.textContent = ''; msgEl.style.color = 'var(--text-muted)';
+      const payload = {};
+      if (field === 'accentColor') payload.accentColor = document.getElementById(`brand-accent-${slug}`).value;
+      else if (field === 'description') payload.description = document.getElementById(`brand-desc-${slug}`).value;
+      else if (field === 'telegramChatId') payload.telegramChatId = document.getElementById(`brand-tg-${slug}`).value.trim();
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        msgEl.textContent = '✓ Saved'; msgEl.style.color = 'var(--accent)';
+        setTimeout(() => { msgEl.textContent = ''; }, 2500);
+      } else {
+        const e = await res.json().catch(() => ({}));
+        msgEl.textContent = e.error || 'Save failed'; msgEl.style.color = 'var(--danger)';
+      }
+    }
+    window.saveOrgBrand = saveOrgBrand;
+
+    async function uploadOrgLogo(slug) {
+      const input = document.getElementById(`brand-logo-${slug}`);
+      const file = input.files?.[0];
+      const msgEl = document.getElementById(`brand-msg-${slug}`);
+      if (!file) { msgEl.textContent = 'Pick an image first.'; msgEl.style.color = 'var(--danger)'; return; }
+      msgEl.textContent = 'Uploading…'; msgEl.style.color = 'var(--text-muted)';
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/logo`, { method: 'POST', body: fd });
+      if (res.ok) {
+        msgEl.textContent = '✓ Uploaded — pending review at /admin/photos'; msgEl.style.color = 'var(--accent)';
+        input.value = '';
+      } else {
+        const e = await res.json().catch(() => ({}));
+        msgEl.textContent = e.error || 'Upload failed'; msgEl.style.color = 'var(--danger)';
+      }
+    }
+    window.uploadOrgLogo = uploadOrgLogo;
+
+    async function cancelOrgDeletion(slug) {
+      const org = _orgsBySlug.get(slug);
+      const name = org ? org.name : slug;
+      if (!confirm(`Cancel pending deletion of ${name}? The archive zip will be discarded; the org returns to normal.`)) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/cancel-deletion`, { method: 'POST' });
+      if (res.ok) { loadOrgs(); }
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Could not cancel deletion'); }
+    }
+    window.cancelOrgDeletion = cancelOrgDeletion;
+
+    async function confirmPermanentDelete(slug) {
+      const org = _orgsBySlug.get(slug);
+      const name = org ? org.name : slug;
+      if (!confirm(`PERMANENTLY delete ${name}?\n\nThis cannot be undone. All recordings, schedules, broadcasters, and metadata will be removed. The archive (if any) is unaffected and remains downloadable until it expires.`)) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+      if (res.ok) { alert(`${name} deleted.`); loadOrgs(); }
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Could not delete'); }
+    }
+    window.confirmPermanentDelete = confirmPermanentDelete;
+
+    function editOrgName(slug) {
+      const row = document.querySelector(`.org-item[data-slug="${slug}"]`);
+      if (!row) return;
+      const display = row.querySelector('.org-display');
+      const currentName = display.querySelector('strong').textContent;
+      display.innerHTML = `
+        <input type="text" class="org-edit-input" value="${esc(currentName)}" maxlength="200"
+          style="padding:0.3rem 0.5rem; background:var(--bg); border:1px solid var(--accent); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit; min-width:160px;">
+        <span style="font-size:0.75rem;color:var(--text-muted);"> /${esc(slug)}</span>
+      `;
+      const input = display.querySelector('input');
+      input.focus(); input.select();
+
+      // Replace edit/delete buttons with save/cancel
+      const actions = row.querySelector('span:last-child');
+      actions.innerHTML = `
+        <button class="btn-live inline-btn" onclick="saveOrgName('${esc(slug)}')">Save</button>
+        <button class="btn-stop inline-btn" onclick="loadOrgs()">Cancel</button>
+      `;
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); saveOrgName(slug); }
+        if (e.key === 'Escape') { e.preventDefault(); loadOrgs(); }
+      });
+    }
+    window.editOrgName = editOrgName;
+
+    async function saveOrgName(slug) {
+      const row = document.querySelector(`.org-item[data-slug="${slug}"]`);
+      if (!row) return;
+      const input = row.querySelector('.org-edit-input');
+      const newName = (input?.value || '').trim();
+      if (!newName) { alert('Name cannot be empty'); return; }
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Could not rename');
+        return;
+      }
+      loadOrgs();
+    }
+    window.saveOrgName = saveOrgName;
+
+    async function createOrg() {
+      const name = document.getElementById('new-org-name').value.trim();
+      const msg = document.getElementById('org-msg');
+      if (!name) return;
+      const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 50);
+      const res = await fetch('/api/admin/orgs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug, name }) });
+      if (res.ok) { document.getElementById('new-org-name').value = ''; msg.style.display = 'none'; loadOrgs(); }
+      else { const d = await res.json(); msg.style.display = 'block'; msg.textContent = d.error; }
+    }
+    window.createOrg = createOrg;
+
+    async function deleteOrg(slug) {
+      const org = _orgsBySlug.get(slug);
+      const name = org ? org.name : slug;
+      const step1 = confirm(`Step 1 of 2 — Archive ${name}\n\nThis will package all of ${name}'s recordings, schedules, and metadata into a downloadable .zip and email the org's primary contact a one-time download link.\n\nThe org is NOT deleted yet — you'll confirm again in step 2 after they have a chance to download.\n\nProceed with archive?`);
+      if (!step1) return;
+      const r1 = await fetch(`/api/admin/orgs/${slug}/request-deletion`, { method: 'POST' });
+      if (!r1.ok) {
+        const e = await r1.json().catch(() => ({}));
+        alert(e.error || 'Archive failed'); return;
+      }
+      const data = await r1.json();
+      const sizeMB = (data.sizeBytes / 1024 / 1024).toFixed(1);
+      const step2 = confirm(`Archive ready (${sizeMB} MB, ${data.recordingCount} recordings).\n\nDownload link sent to: ${data.emailedTo || 'NO contact email on file — copy the URL from Telegram'}\n\nStep 2 of 2 — Permanently delete ${name} now?\n\nClick CANCEL to keep the org alive (you can execute deletion later or call /api/admin/orgs/${slug}/cancel-deletion to abort).`);
+      if (!step2) {
+        alert('Org is in pending-deletion state. Run executeDelete or cancel from the API.');
+        loadOrgs(); return;
+      }
+      const r2 = await fetch(`/api/admin/orgs/${slug}`, { method: 'DELETE' });
+      if (!r2.ok) {
+        const e = await r2.json().catch(() => ({}));
+        alert(e.error || 'Delete failed'); return;
+      }
+      alert('Org deleted. Archive remains downloadable for 7 days.');
+      loadOrgs();
+    }
+    window.deleteOrg = deleteOrg;
+
+    // (Removed orphan createBroadcaster() — replaced by the email-invite flow long ago,
+    //  referenced HTML elements that no longer exist.)
+
+    // ===== Team Broadcasters =====
+    // For superadmin: the picker (#team-org-picker) drives which org we render.
+    // For org leaders: locked to their own org via me.orgSlug.
+    async function loadTeam(forceSlug) {
+      let slug;
+      if (me.isSuperadmin) {
+        const picker = document.getElementById('team-org-picker');
+        slug = forceSlug || picker?.value || me.orgSlug || 'default';
+      } else {
+        slug = me.orgSlug || orgSlug || 'default';
+      }
+      window._teamOrgSlug = slug; // exposed so per-row action handlers know the org
+
+      // Update header to show which org we're looking at
+      const desc = document.getElementById('team-desc');
+      if (desc && me.isSuperadmin) desc.textContent = `Viewing team for /${slug}.`;
+
+      try {
+        const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/broadcasters`, { cache: 'no-store' });
+        if (!res.ok) {
+          document.getElementById('team-list').innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);">Could not load broadcasters.</div>';
+          return;
+        }
+        const data = await res.json();
+        renderTeam(data.broadcasters || [], data.invites || []);
+
+        // Populate the org dropdowns (superadmin only) — both the team picker and the invite dropdown
+        if (me.isSuperadmin) {
+          const orgRes = await fetch('/api/orgs', { cache: 'no-store' });
+          if (orgRes.ok) {
+            const orgs = await orgRes.json();
+            // Invite dropdown — defaults to currently-viewed org
+            const inviteSel = document.getElementById('invite-org');
+            inviteSel.innerHTML = orgs.map(o => `<option value="${esc(o.slug)}" ${o.slug === slug ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
+            // Team picker — wire up only on first load
+            const picker = document.getElementById('team-org-picker');
+            picker.innerHTML = orgs.map(o => `<option value="${esc(o.slug)}" ${o.slug === slug ? 'selected' : ''}>${esc(o.name)} (/${esc(o.slug)})</option>`).join('');
+            document.getElementById('team-org-picker-field').style.display = 'block';
+            if (!picker.dataset.wired) {
+              picker.addEventListener('change', () => loadTeam());
+              picker.dataset.wired = '1';
+            }
+          }
+        }
+      } catch (err) {
+        document.getElementById('team-list').innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);">Network error.</div>';
+      }
+    }
+
+    // Populated by renderTeam — keyed by numeric broadcaster id. transfer/forceSet/reset/disable2fa/remove
+    // handlers look up display_name + username from here so user-controlled strings never enter HTML
+    // attribute context (parser-decoded entities can break out of the JS string).
+    const _teamById = new Map();
+
+    function renderTeam(broadcasters, invites) {
+      const list = document.getElementById('team-list');
+      // Determine current user's authority for this org
+      const iAmLeader = me.isOrgLeader;
+      const iAmAdmin = me.isSuperadmin;
+      const canManage = iAmLeader || iAmAdmin;
+
+      _teamById.clear();
+      broadcasters.forEach(b => _teamById.set(b.id, b));
+
+      const rows = broadcasters.map(b => {
+        const badges = [];
+        if (b.is_org_leader) badges.push('<span class="role-badge leader">LEADER</span>');
+        if (b.account_type === 'shared') badges.push('<span class="role-badge shared">SHARED</span>');
+        if (b.is_superadmin) badges.push('<span class="role-badge admin">ADMIN</span>');
+        const twoFA = b.totp_enabled ? '<span class="role-badge twofa">2FA</span>' : '<span class="role-badge no-twofa">No 2FA</span>';
+        const meta = `<div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">@${esc(b.username)}${b.first_login_at ? ' · last login ' + esc(new Date(b.first_login_at + 'Z').toLocaleDateString()) : ' · never logged in'}</div>`;
+
+        // Action buttons
+        const actions = [];
+        const isSelf = b.id === me.id;
+        // Transfer Leader: only the current leader sees this on OTHER non-shared broadcasters
+        if (iAmLeader && !isSelf && !b.is_org_leader && b.account_type !== 'shared' && !b.is_superadmin) {
+          actions.push(`<button class="btn-stop inline-btn" onclick="transferLeader(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Make this person the org leader">↪️ Transfer</button>`);
+        }
+        // Force-Set Leader: superadmin only — recovery when current leader is locked out
+        if (iAmAdmin && !b.is_org_leader && b.account_type !== 'shared' && !b.is_superadmin) {
+          actions.push(`<button class="btn-stop inline-btn" onclick="forceSetLeader(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Force-set as org leader (superadmin recovery)">👑 Make Leader</button>`);
+        }
+        // Reset Password: superadmin only — emergency lockout recovery
+        if (iAmAdmin && !isSelf && !b.is_superadmin) {
+          actions.push(`<button class="btn-stop inline-btn" onclick="adminResetPassword(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Reset broadcaster's password (emergency)">🔑 Reset Pw</button>`);
+        }
+        // Disable 2FA: superadmin only, only when 2FA is currently enabled — emergency lockout recovery
+        if (iAmAdmin && !isSelf && b.totp_enabled && !b.is_superadmin) {
+          actions.push(`<button class="btn-stop inline-btn" onclick="adminDisable2fa(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Disable 2FA for this broadcaster (emergency)">🔓 Disable 2FA</button>`);
+        }
+        // Delete: leader/admin can remove others (not self, not the leader without transfer first, not superadmin)
+        if (canManage && !isSelf && !b.is_superadmin && !b.is_org_leader) {
+          actions.push(`<button class="btn-stop inline-btn" onclick="removeBroadcaster(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem; color:var(--danger);" title="Remove from org">✕</button>`);
+        }
+        const actionsHtml = actions.length ? `<span style="display:flex; gap:0.3rem; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">${actions.join('')}</span>` : '';
+
+        return `<div class="team-row" data-id="${b.id}">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+              <strong style="font-size:0.9rem;">${esc(b.display_name)}</strong>
+              ${badges.join(' ')}
+              ${b.account_type !== 'shared' ? twoFA : ''}
+            </div>
+            ${meta}
+          </div>
+          ${actionsHtml}
+        </div>`;
+      }).join('');
+      const inviteRows = invites.length > 0
+        ? '<div style="font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-top:0.75rem; margin-bottom:0.4rem;">PENDING INVITES</div>' +
+          invites.map(i => `<div class="team-row pending">
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:0.85rem;">${esc(i.invited_display_name)} <span style="color:var(--text-muted);">&lt;${esc(i.invited_email)}&gt;</span></div>
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">${esc(i.account_type)} · expires ${esc(new Date(i.invite_expires_at + 'Z').toLocaleDateString())}</div>
+            </div>
+          </div>`).join('')
+        : '';
+      list.innerHTML = (rows || '<div class="empty-state"><div class="empty-icon">🎙️</div><div class="empty-title">No broadcasters yet</div><div class="empty-body">Invite your first teammate using the form below. They\'ll receive an email with a one-time setup link.</div></div>') + inviteRows;
+    }
+
+    async function sendInvite() {
+      const msg = document.getElementById('invite-msg');
+      msg.style.display = 'none';
+      const email = document.getElementById('invite-email').value.trim().toLowerCase();
+      const displayName = document.getElementById('invite-display').value.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.className = 'error-msg'; msg.textContent = 'Enter a valid email'; msg.style.display = 'block'; return; }
+      if (!displayName) { msg.className = 'error-msg'; msg.textContent = 'Enter a display name'; msg.style.display = 'block'; return; }
+
+      // Pick org slug: superadmin uses dropdown; org leaders use their own org
+      const targetSlug = me.isSuperadmin
+        ? (document.getElementById('invite-org').value || (me.orgSlug || 'default'))
+        : (me.orgSlug || 'default');
+
+      // Account type: superadmin can choose; org leaders always 'individual' (server enforces too)
+      const accountType = me.isSuperadmin
+        ? (document.querySelector('input[name="invite-type"]:checked')?.value || 'individual')
+        : 'individual';
+
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(targetSlug)}/invite-broadcaster`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, displayName, accountType }),
+      });
+      if (res.ok) {
+        document.getElementById('invite-email').value = '';
+        document.getElementById('invite-display').value = '';
+        msg.className = 'success-msg';
+        msg.textContent = `Invite email sent to ${targetSlug}. Link expires in 7 days.`;
+        msg.style.display = 'block';
+        setTimeout(() => msg.style.display = 'none', 5000);
+        // For superadmin: switch the team picker to the invited org so they can see the pending invite
+        if (me.isSuperadmin) {
+          const picker = document.getElementById('team-org-picker');
+          if (picker) picker.value = targetSlug;
+          loadTeam(targetSlug);
+        } else {
+          loadTeam();
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        msg.className = 'error-msg';
+        msg.textContent = err.error || 'Could not send invite';
+        msg.style.display = 'block';
+      }
+    }
+    window.sendInvite = sendInvite;
+
+    async function removeBroadcaster(id) {
+      const b = _teamById.get(id);
+      const name = b ? b.display_name : ('id ' + id);
+      if (!confirm(`Remove ${name} from this org?\n\nThey will lose access immediately. This cannot be undone.`)) return;
+      const res = await fetch(`/api/admin/broadcasters/${id}`, { method: 'DELETE' });
+      if (res.ok) { loadTeam(); }
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Could not remove'); }
+    }
+    window.removeBroadcaster = removeBroadcaster;
+
+    async function transferLeader(toId) {
+      const b = _teamById.get(toId);
+      const toName = b ? b.display_name : ('id ' + toId);
+      const slug = me.orgSlug || orgSlug || 'default';
+      if (!confirm(`Transfer org leadership to ${toName}?\n\nYou will no longer be the leader. ${toName} will be able to invite/remove broadcasters and edit org settings.\n\nThis is reversible — they can transfer it back to you later.`)) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/transfer-leader`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toBroadcasterId: toId }),
+      });
+      if (res.ok) {
+        alert('Leadership transferred.');
+        // Reload to refresh me.isOrgLeader and update visible actions
+        window.location.reload();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        alert(e.error || 'Could not transfer leadership');
+      }
+    }
+    window.transferLeader = transferLeader;
+
+    // ===== Superadmin emergency actions (force-set leader, password reset, 2FA disable) =====
+    async function forceSetLeader(broadcasterId) {
+      const b = _teamById.get(broadcasterId);
+      const name = b ? b.display_name : ('id ' + broadcasterId);
+      const slug = window._teamOrgSlug;
+      if (!confirm(`Force-set ${name} as the leader of ${slug}?\n\nThis bypasses the normal Transfer flow and is for recovery only — use when the current leader is locked out (lost 2FA + password). The previous leader (if any) is demoted to a regular broadcaster.\n\nThis action is logged.`)) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/force-set-leader`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ broadcasterId }),
+      });
+      if (res.ok) {
+        alert(`${name} is now the leader of ${slug}.`);
+        loadTeam();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        alert(e.error || 'Could not force-set leader');
+      }
+    }
+    window.forceSetLeader = forceSetLeader;
+
+    async function adminResetPassword(broadcasterId) {
+      const b = _teamById.get(broadcasterId);
+      const name = b ? b.display_name : ('id ' + broadcasterId);
+      const username = b ? b.username : '?';
+      if (!confirm(`Reset password for ${name} (@${username})?\n\nA temporary password will be generated. They'll be required to change it on next login. All their existing sessions will be terminated.\n\nThis action is logged.`)) return;
+      const res = await fetch(`/api/admin/broadcasters/${broadcasterId}/reset-password`, { method: 'POST' });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        alert(e.error || 'Could not reset password');
+        return;
+      }
+      const { tempPassword } = await res.json();
+      showTempPasswordModal(name, username, tempPassword);
+      loadTeam();
+    }
+    window.adminResetPassword = adminResetPassword;
+
+    function showTempPasswordModal(name, username, tempPassword) {
+      // Blocking modal — temp password is shown ONCE and cleared from DOM after Done or 60s.
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:10001;padding:1rem;';
+      overlay.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-width:440px;width:100%;padding:1.25rem 1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+          <div style="font-size:1.05rem;font-weight:700;margin-bottom:0.5rem;">🔑 Temporary password</div>
+          <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:0.85rem;">Give this to <strong style="color:var(--text);">${esc(name)}</strong> (@${esc(username)}). They'll be forced to change it on next login. <strong>This is shown once</strong> and will disappear in 60 seconds.</div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 0.85rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1rem;font-weight:600;text-align:center;letter-spacing:0.05em;margin-bottom:0.85rem;user-select:all;" id="temp-pw-display">${esc(tempPassword)}</div>
+          <div style="display:flex;gap:0.5rem;">
+            <button type="button" class="btn-primary" id="temp-pw-copy" style="width:auto;padding:0.5rem 1rem;font-size:0.85rem;">Copy</button>
+            <button type="button" class="btn-stop" id="temp-pw-done" style="width:auto;padding:0.5rem 1rem;font-size:0.85rem;">Done</button>
+            <span id="temp-pw-countdown" style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);align-self:center;">60s</span>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const cleanup = () => {
+        const el = document.getElementById('temp-pw-display');
+        if (el) el.textContent = ''; // wipe from DOM
+        overlay.remove();
+        clearInterval(timer);
+      };
+      let secs = 60;
+      const timer = setInterval(() => {
+        secs--;
+        const c = document.getElementById('temp-pw-countdown');
+        if (c) c.textContent = secs + 's';
+        if (secs <= 0) cleanup();
+      }, 1000);
+      document.getElementById('temp-pw-copy').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(tempPassword); document.getElementById('temp-pw-copy').textContent = 'Copied ✓'; }
+        catch { alert('Copy failed — select the password manually'); }
+      });
+      document.getElementById('temp-pw-done').addEventListener('click', cleanup);
+    }
+
+    async function adminDisable2fa(broadcasterId) {
+      const b = _teamById.get(broadcasterId);
+      const name = b ? b.display_name : ('id ' + broadcasterId);
+      const username = b ? b.username : '?';
+      if (!confirm(`Disable 2FA for ${name} (@${username})?\n\nTheir authenticator app secret and backup codes will be erased. They'll need to re-enroll from scratch (and will be re-prompted to set up 2FA on their next login).\n\nThis action is irreversible and logged.`)) return;
+      const res = await fetch(`/api/admin/broadcasters/${broadcasterId}/disable-2fa`, { method: 'POST' });
+      if (res.ok) {
+        alert(`2FA disabled for ${name}.`);
+        loadTeam();
+      } else {
+        const e = await res.json().catch(() => ({}));
+        alert(e.error || 'Could not disable 2FA');
+      }
+    }
+    window.adminDisable2fa = adminDisable2fa;
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function relativeAgo(iso) {
+      if (!iso) return '';
+      const then = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z').getTime();
+      const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+      if (sec < 60) return 'just now';
+      if (sec < 3600) return `${Math.floor(sec/60)}m ago`;
+      if (sec < 86400) return `${Math.floor(sec/3600)}h ago`;
+      const days = Math.floor(sec/86400);
+      if (days < 30) return `${days}d ago`;
+      if (days < 365) return `${Math.floor(days/30)}mo ago`;
+      return `${Math.floor(days/365)}y ago`;
+    }
+
+    // ===== 2FA (TOTP) =====
+    let totpSecret = null;
+
+    async function totpRefresh() {
+      try {
+        const res = await fetch('/api/broadcaster/totp/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('totp-status').textContent = data.enabled
+          ? `Status: enabled · ${data.backupCodesRemaining} backup codes remaining`
+          : 'Status: not enabled';
+        document.getElementById('totp-on').classList.toggle('hidden', !data.enabled);
+        document.getElementById('totp-off').classList.toggle('hidden', data.enabled);
+        document.getElementById('totp-setup').classList.add('hidden');
+        document.getElementById('totp-backup-display').classList.add('hidden');
+        document.getElementById('totp-backup-count').textContent = data.enabled
+          ? `${data.backupCodesRemaining} backup code${data.backupCodesRemaining === 1 ? '' : 's'} left.`
+          : '';
+
+        // Hide entire card for shared accounts (they cannot enable 2FA)
+        if (me?.accountType === 'shared') {
+          document.getElementById('totp-card').style.display = 'none';
+          return;
+        }
+
+        // Mandatory-2FA banner for individual broadcasters
+        const banner = document.getElementById('totp-banner');
+        banner.classList.remove('show', 'warn', 'err');
+        if (data.enabled || me?.isSuperadmin) {
+          // hidden — no action needed
+        } else {
+          const flAt = me?.firstLoginAt ? new Date(me.firstLoginAt + 'Z') : null;
+          const now = new Date();
+          const days = flAt ? Math.floor((now - flAt) / (24 * 60 * 60 * 1000)) : 0;
+          const remaining = Math.max(0, 7 - days);
+          if (me?.isOrgLeader) {
+            banner.classList.add('show', 'err');
+            banner.innerHTML = '<strong>Action required:</strong> Enable 2FA before you can manage your team (invite, remove, transfer leadership).';
+          } else if (remaining <= 0) {
+            banner.classList.add('show', 'err');
+            banner.innerHTML = '<strong>2FA setup is required.</strong> You can no longer manage rooms, schedules, or recordings until 2FA is enabled.';
+          } else {
+            banner.classList.add('show', 'warn');
+            banner.innerHTML = `<strong>2FA setup required.</strong> ${remaining} day${remaining === 1 ? '' : 's'} remaining before account actions are restricted.`;
+          }
+        }
+      } catch {}
+    }
+    // Wait for me to be loaded before computing banner
+    setTimeout(totpRefresh, 100);
+
+    // ===== Branding (logo upload + pending review) =====
+    async function loadBranding() {
+      try {
+        const res = await fetch(`/api/orgs/${encodeURIComponent(me.orgSlug || 'default')}`);
+        if (!res.ok) return;
+        const o = await res.json();
+        const preview = document.getElementById('branding-preview');
+        const state = document.getElementById('branding-state');
+        const banner = document.getElementById('branding-pending-banner');
+        if (o.logoUrl) {
+          preview.src = o.logoUrl;
+          preview.style.display = 'block';
+          state.textContent = `Current logo for ${o.name}.`;
+        } else {
+          preview.style.display = 'none';
+          state.textContent = `No logo set for ${o.name} yet.`;
+        }
+        banner.style.display = o.pendingLogoUrl ? 'block' : 'none';
+      } catch {}
+    }
+
+    async function uploadLogo(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const msg = document.getElementById('branding-msg');
+      const fd = new FormData();
+      fd.append('logo', file);
+      msg.style.display = 'block';
+      msg.className = 'success-msg';
+      msg.textContent = 'Uploading…';
+      try {
+        const res = await fetch(`/api/admin/orgs/${encodeURIComponent(me.orgSlug || 'default')}/logo`, {
+          method: 'POST', body: fd,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          msg.className = 'error-msg';
+          msg.textContent = data.error || 'Upload failed';
+        } else {
+          msg.textContent = 'Uploaded — pending review by a moderator.';
+          loadBranding();
+        }
+      } catch (err) {
+        msg.className = 'error-msg';
+        msg.textContent = 'Upload failed: ' + (err.message || 'network error');
+      }
+      // Reset the file input so the same file can be re-selected
+      e.target.value = '';
+    }
+    window.uploadLogo = uploadLogo;
+
+    async function cancelPendingLogo() {
+      if (!confirm('Cancel the pending logo submission?')) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(me.orgSlug || 'default')}/logo/pending`, { method: 'DELETE' });
+      if (res.ok) loadBranding();
+    }
+    window.cancelPendingLogo = cancelPendingLogo;
+
+    async function totpStartSetup() {
+      const res = await fetch('/api/broadcaster/totp/setup', { method: 'POST' });
+      if (!res.ok) { alert('Could not start 2FA setup'); return; }
+      const data = await res.json();
+      totpSecret = data.secret;
+      document.getElementById('totp-qr').src = data.qrDataUrl;
+      document.getElementById('totp-secret-display').textContent = data.secret;
+      document.getElementById('totp-off').classList.add('hidden');
+      document.getElementById('totp-setup').classList.remove('hidden');
+    }
+    window.totpStartSetup = totpStartSetup;
+
+    function totpCancelSetup() {
+      totpSecret = null;
+      document.getElementById('totp-setup').classList.add('hidden');
+      document.getElementById('totp-off').classList.remove('hidden');
+    }
+    window.totpCancelSetup = totpCancelSetup;
+
+    async function totpConfirmEnable() {
+      const code = document.getElementById('totp-verify-code').value.trim();
+      const msg = document.getElementById('totp-setup-msg');
+      msg.style.display = 'none';
+      if (!/^\d{6}$/.test(code)) { msg.textContent = 'Enter a 6-digit code'; msg.style.display = 'block'; return; }
+      const res = await fetch('/api/broadcaster/totp/enable', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: totpSecret, code }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); msg.textContent = d.error || 'Failed'; msg.style.display = 'block'; return; }
+      const data = await res.json();
+      document.getElementById('totp-setup').classList.add('hidden');
+      document.getElementById('totp-backup-list').textContent = data.backupCodes.join('\n');
+      document.getElementById('totp-backup-display').classList.remove('hidden');
+      window._totpBackups = data.backupCodes;
+    }
+    window.totpConfirmEnable = totpConfirmEnable;
+
+    function totpDownloadBackups() {
+      const codes = window._totpBackups || [];
+      const blob = new Blob([
+        'UmmahCast — 2FA Backup Codes\n',
+        'Generated: ' + new Date().toISOString() + '\n',
+        'Each code can be used ONCE.\n\n',
+        codes.join('\n') + '\n',
+      ], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'ummahcast-backup-codes.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    window.totpDownloadBackups = totpDownloadBackups;
+
+    function totpDoneBackups() {
+      window._totpBackups = null;
+      document.getElementById('totp-backup-display').classList.add('hidden');
+      totpRefresh();
+    }
+    window.totpDoneBackups = totpDoneBackups;
+
+    function totpStartDisable() {
+      document.getElementById('totp-disable').classList.remove('hidden');
+    }
+    window.totpStartDisable = totpStartDisable;
+
+    async function totpConfirmDisable() {
+      const password = document.getElementById('totp-disable-pass').value;
+      const code = document.getElementById('totp-disable-code').value.trim();
+      const msg = document.getElementById('totp-disable-msg');
+      msg.style.display = 'none';
+      const res = await fetch('/api/broadcaster/totp/disable', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, code }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); msg.textContent = d.error || 'Failed'; msg.style.display = 'block'; return; }
+      document.getElementById('totp-disable-pass').value = '';
+      document.getElementById('totp-disable-code').value = '';
+      document.getElementById('totp-disable').classList.add('hidden');
+      totpRefresh();
+    }
+    window.totpConfirmDisable = totpConfirmDisable;
+
+    init();
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

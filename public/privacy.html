@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Privacy Policy</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>.legal { max-width: 640px; width: 100%; } .legal h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 1.5rem 0 0.5rem; } .legal p, .legal li { font-size: 0.85rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 0.5rem; } .legal ul { padding-left: 1.25rem; }</style>
+</head>
+<body>
+  <main class="legal">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Privacy Policy</h2>
+    <p style="font-size:0.8rem; color:var(--text-muted);">Last updated: May 18, 2026</p>
+
+    <h3>What is UmmahCast?</h3>
+    <p>UmmahCast is a self-hosted live audio streaming platform for mosque communities. It is operated independently and is not affiliated with any third-party service.</p>
+
+    <h3>Information We Collect</h3>
+    <ul>
+      <li><strong>Listener display name</strong> — the name you type when joining a room. Saved in your browser's local storage so you don't have to re-enter it. Visible to other listeners in the same room. Not retained on our servers beyond your active session.</li>
+      <li><strong>Push notification subscription</strong> — if you opt in, your browser's push endpoint and encryption keys.</li>
+      <li><strong>Email address</strong> — only if you opt in to email broadcast alerts, submit the contact form, apply to broadcast on behalf of an organization, or are invited to be a broadcaster.</li>
+      <li><strong>Notification preferences</strong> — followed rooms, frequency (instant or daily digest), quiet hours, timezone.</li>
+      <li><strong>Broadcaster accounts</strong> — username, display name, hashed password (scrypt), 2FA secret if enabled, the timestamp of first sign-in (used to start the 2FA setup grace window), and the date you accepted the current Terms of Service.</li>
+      <li><strong>Broadcaster invites</strong> — if an organization leader invites a teammate, we store that person's email and display name until the invite is accepted or expires.</li>
+      <li><strong>Organization information</strong> — name, description, accent color, and any logo an organization leader uploads (uploads are reviewed by a moderator before going public).</li>
+      <li><strong>Audio recordings</strong> — broadcasts may be recorded by the broadcaster and published at their discretion.</li>
+      <li><strong>Live chat messages</strong> — passed through a profanity and slur filter, then broadcast to listeners in the room. Not stored in any database. Filtered hits may be logged transiently to the server console for moderator review.</li>
+      <li><strong>Contact form submissions</strong> — name, optional email, message, and submission IP for spam protection.</li>
+      <li><strong>Aggregate site events</strong> — see "First-Party Analytics" below.</li>
+    </ul>
+
+    <h3>What We Don't Do</h3>
+    <ul>
+      <li>No third-party cookies, advertising, or marketing trackers</li>
+      <li>No tracking across websites or applications</li>
+      <li>No location data</li>
+      <li>No selling, renting, or monetizing user data</li>
+      <li>No individual listening history or personal profiles</li>
+    </ul>
+
+    <h3>First-Party Analytics</h3>
+    <p>We track a small, fixed set of aggregate events so we know which parts of the site are working — page views, the "Apply" button, sample-broadcast plays, listener joins, "Support UmmahCast" clicks, and the like. These are stored as event-name counters with <strong>no personal information attached</strong>: no IP addresses, no cookies, no user identifiers, no device fingerprints, no third-party trackers. The data tells us "the homepage was viewed N times this week," not "person X viewed the homepage at 3:42pm." The list of tracked event names is fixed in code and visible at <code>/api/event</code> (allow-list enforced server-side).</p>
+
+    <h3>Cookies &amp; Local Storage</h3>
+    <p>UmmahCast uses only essential cookies and local storage. We never use third-party cookies or trackers.</p>
+    <ul>
+      <li><strong>Session cookie</strong> (<code>uc_session</code>) — authenticates broadcasters. HttpOnly, Secure, SameSite=Strict, signed, expires in 24 hours.</li>
+      <li><strong>Local storage</strong> (in your browser only, never sent to us except as noted):
+        <ul>
+          <li><code>uc_name</code> — the display name you typed for joining rooms</li>
+          <li><code>uc.theme</code> — your dark/light mode preference</li>
+          <li><code>uc.lastRoom</code> — the last room you joined, used to power the cross-page "Resume Listening" pill. Auto-expires after 24 hours and is dismissible.</li>
+          <li><code>uc_volume</code> — your volume setting</li>
+          <li><code>uc_onboarded</code> — whether you've seen the first-visit welcome card</li>
+          <li><code>uc.rec.*</code> — playback position for individual recordings, so you can pick up where you left off</li>
+          <li><code>uc.token.{org}</code> — for email subscribers, a token to manage your preferences from the link in any notification email</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>Push Notifications</h3>
+    <p>When you enable push notifications, your browser generates a unique subscription endpoint. We store this to send you alerts when a broadcast goes live. You can unsubscribe at any time by clicking the notification button or revoking permission in your browser settings.</p>
+
+    <h3>Email Notifications</h3>
+    <p>If you opt in to email notifications, your email address is stored to deliver alerts when broadcasts go live. Verification uses a double opt-in process — we email a confirmation link before sending any notifications.</p>
+    <p>To send these emails reliably, we route them through one or more third-party email-delivery providers (acting as data processors on our behalf). These providers process only the data needed to deliver your message — your email address, the message subject and body, and basic delivery metadata. They do not use your data for their own purposes.</p>
+    <p>Every notification email includes a one-click unsubscribe link and a link to manage your preferences. You can change your subscription, set quiet hours, switch to a daily digest, or unsubscribe at any time without contacting us.</p>
+
+    <h3>Audio Streaming</h3>
+    <p>Live audio is transmitted via WebSocket connections. Connection metadata (IP address, user agent) is used only for routing and is not stored beyond what is needed to operate the service. Broadcasts may be recorded by the broadcaster — published recordings are accessible to all listeners in that room.</p>
+
+    <h3>Network Delivery (CDN)</h3>
+    <p>Traffic to and from this site is routed through a third-party content-delivery network (CDN) to provide HTTPS encryption, caching, and protection against abuse. The CDN provider necessarily processes connection metadata such as your IP address, request headers, and timestamps to perform this routing and security function. Visit your browser's settings or use a VPN if you wish to limit what the CDN provider can see about your connection.</p>
+
+    <h3>Data Sharing</h3>
+    <p>We do not sell or rent your data. We share data only with service providers strictly necessary to operate this site (email delivery, push notification delivery via the standards-required Apple/Google infrastructure, optional Telegram channels configured by Organizations, and the CDN described above), and only the minimum information they need to perform that service. We do not provide your data to advertisers, marketers, or unrelated third parties.</p>
+
+    <h3>Data Retention & Deletion</h3>
+    <ul>
+      <li>Listener display names are ephemeral — they exist on our servers only during your active session</li>
+      <li>Push subscriptions are retained until you unsubscribe or they expire</li>
+      <li>Email subscriptions are retained until you unsubscribe (one-click in any notification email or via your preferences page)</li>
+      <li>Broadcaster invites expire automatically if not accepted within 7 days</li>
+      <li>Contact form submissions are retained only as long as needed to respond</li>
+      <li>Broadcaster accounts can be deleted by contacting an administrator via the contact form</li>
+      <li>Organization logos are deleted automatically if rejected by a moderator; approved logos are retained until replaced or the organization is removed</li>
+      <li>Aggregate site-event counters are non-personal and retained as anonymized totals</li>
+      <li>Recordings are managed by each organization's broadcaster</li>
+    </ul>
+
+    <h3>Your Rights</h3>
+    <p>You can access, correct, or delete your data at any time:</p>
+    <ul>
+      <li><strong>Email subscribers</strong> — manage preferences or unsubscribe via the link in any notification email, or use the "Find my preferences" form on the notifications page</li>
+      <li><strong>Push subscribers</strong> — toggle notifications off in your browser or click the notification button on the site</li>
+      <li><strong>Other requests</strong> — contact the administrator using the contact form</li>
+    </ul>
+
+    <h3>Security &amp; Breach Notification</h3>
+    <p>All connections use HTTPS/TLS encryption. Passwords are hashed with scrypt. The application is self-hosted on independently-controlled infrastructure; data is processed by third parties only for the limited delivery and routing functions described above.</p>
+    <p>If a security incident affects your personal information, we will notify affected users in accordance with applicable law. Email subscribers will be contacted via the address on file; broadcasters will be contacted via the email associated with their account.</p>
+
+    <h3>Telegram Notifications (Optional)</h3>
+    <p>If an Organization configures a Telegram channel for live-broadcast alerts, going-live notifications are also sent to that channel through Telegram's bot API. Telegram (a service operated by Telegram FZ-LLC) acts as a third-party processor for those messages — they process the message content, channel identifier, and delivery metadata to perform routing. Subscribing to or leaving a Telegram channel is controlled entirely within the Telegram app and is independent of UmmahCast.</p>
+
+    <h3>For European (UK/EU) Users</h3>
+    <p>If you are accessing UmmahCast from the United Kingdom or the European Economic Area:</p>
+    <ul>
+      <li><strong>Data controller</strong> — the site administrator, contactable via the <a href="/contact">contact form</a>.</li>
+      <li><strong>Legal basis</strong> — we process the data described above on the basis of your consent (push and email subscriptions) and our legitimate interest in operating the service (essential cookies, aggregate analytics).</li>
+      <li><strong>Your rights</strong> — under the UK and EU GDPR you have the right to access, correct, delete, restrict processing of, and port your personal data, and to withdraw consent at any time. To exercise these rights, contact us via the contact form. You also have the right to lodge a complaint with your local supervisory authority.</li>
+      <li><strong>International transfer</strong> — UmmahCast is hosted in the United States. By using the service you understand your data is processed in the U.S.</li>
+    </ul>
+
+    <h3>For California Residents</h3>
+    <p>We do not sell or share your personal information. We do not use it for cross-context behavioral advertising. The categories of personal information we collect and our use of them are described above.</p>
+
+    <h3>Changes to This Policy</h3>
+    <p>We may update this policy occasionally. The "last updated" date at the top reflects the most recent revision.</p>
+
+    <h3>Contact</h3>
+    <p>For questions about this policy or to request data deletion, contact the site administrator.</p>
+
+    <div style="margin-top:2rem; text-align:center;">
+      <a href="/" class="btn-secondary" style="display:inline-flex;width:auto;padding:0.4rem 1rem;font-size:0.85rem;border-radius:var(--radius-pill);text-decoration:none;">← Back to UmmahCast</a>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

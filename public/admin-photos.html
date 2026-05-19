@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Photo Approvals</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/tos-gate.js" defer></script>
+  <script src="/js/password-gate.js" defer></script>
+  <style>
+    .photos-page { max-width: 860px; width: 100%; }
+    .photo-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .photo-card .preview-pair { display: flex; gap: 0.75rem; flex-shrink: 0; }
+    .photo-card .preview-pair img {
+      width: 96px; height: 96px; object-fit: cover; border-radius: 12px;
+      background: var(--bg); border: 1px solid var(--border);
+    }
+    .photo-card .preview-pair .placeholder {
+      width: 96px; height: 96px; border-radius: 12px;
+      background: var(--bg); border: 1px dashed var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 0.7rem;
+    }
+    .photo-card .label {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-muted); text-align: center; margin-top: 0.25rem;
+    }
+    .photo-card .info { flex: 1; min-width: 0; }
+    .photo-card .info-name { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+    .photo-card .info-slug { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; font-family: ui-monospace, monospace; }
+    .photo-card .info-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.6; }
+    .photo-card .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .photo-card .actions button { width: auto; padding: 0.45rem 0.95rem; font-size: 0.8rem; min-height: auto; }
+    @media (max-width: 540px) {
+      .photo-card { flex-direction: column; }
+      .photo-card .preview-pair img, .photo-card .preview-pair .placeholder { width: 80px; height: 80px; }
+    }
+    .auth-error {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem; text-align: center; color: var(--text-muted);
+    }
+    .empty {
+      background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+      padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="photos-page">
+    <h2>📷 Photo Approvals</h2>
+    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">Mosques upload logos here. Approve or reject before they go live on community pages.</p>
+
+    <div id="auth-error" class="auth-error" style="display:none;">Superadmin access required. <a href="/" style="color:inherit;">Go home</a>.</div>
+    <div id="list"></div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+    (async function init() {
+      let me = null;
+      try { const r = await fetch('/api/broadcaster/me'); if (r.ok) me = await r.json(); } catch {}
+      if (!me || !me.isSuperadmin) {
+        document.getElementById('auth-error').style.display = 'block';
+        return;
+      }
+      load();
+    })();
+
+    async function load() {
+      const list = document.getElementById('list');
+      list.innerHTML = '<div class="empty">Loading…</div>';
+      const res = await fetch('/api/admin/pending-logos');
+      if (!res.ok) { list.innerHTML = '<div class="empty">Could not load.</div>'; return; }
+      const data = await res.json();
+      if (!data.pending || data.pending.length === 0) {
+        list.innerHTML = '<div class="empty">🌙 No pending photo submissions. All caught up.</div>';
+        return;
+      }
+      list.innerHTML = data.pending.map(p => {
+        const uploader = p.uploader_name || p.uploader_username || 'unknown';
+        const when = p.uploaded_at ? new Date(p.uploaded_at + 'Z').toLocaleString() : '—';
+        const currentBlock = p.logo_url
+          ? `<div><img src="${esc(p.logo_url)}" alt="current"><div class="label">Current</div></div>`
+          : `<div><div class="placeholder">none</div><div class="label">Current</div></div>`;
+        return `<div class="photo-card" data-slug="${esc(p.slug)}">
+          <div class="preview-pair">
+            ${currentBlock}
+            <div><img src="${esc(p.pending_logo_url)}" alt="proposed"><div class="label">Proposed</div></div>
+          </div>
+          <div class="info">
+            <div class="info-name">${esc(p.name)}</div>
+            <div class="info-slug">/${esc(p.slug)}</div>
+            <div class="info-meta">Uploaded by <strong>${esc(uploader)}</strong> · ${esc(when)}</div>
+            <div class="actions">
+              <button class="btn-primary" onclick="approve('${esc(p.slug)}')">✓ Approve</button>
+              <button class="btn-stop" onclick="reject('${esc(p.slug)}')">✕ Reject</button>
+              <a href="/${esc(p.slug)}" target="_blank" rel="noopener" class="btn-secondary" style="display:inline-flex;align-items:center;padding:0.45rem 0.95rem;font-size:0.8rem;text-decoration:none;width:auto;min-height:auto;">View page →</a>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function approve(slug) {
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/logo/approve`, { method: 'POST' });
+      if (res.ok) load();
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Failed to approve'); }
+    }
+    window.approve = approve;
+
+    async function reject(slug) {
+      if (!confirm(`Reject the pending logo for ${slug}? The file will be deleted.`)) return;
+      const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}/logo/reject`, { method: 'POST' });
+      if (res.ok) load();
+      else { const e = await res.json().catch(() => ({})); alert(e.error || 'Failed to reject'); }
+    }
+    window.reject = reject;
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+  <script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

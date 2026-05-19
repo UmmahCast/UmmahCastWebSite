@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Enable Notifications</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>.guide { max-width: 640px; width: 100%; } .guide h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 2rem 0 0.75rem; } .guide p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 0.75rem; } .step { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: var(--surface); border-radius: var(--radius); margin-bottom: 0.75rem; } .step-num { font-size: 1.25rem; font-weight: 700; color: var(--accent); flex-shrink: 0; width: 2rem; text-align: center; } .step-text { font-size: 0.9rem; line-height: 1.6; } .step-text strong { color: var(--text); } .step-text span { color: var(--text-muted); } .platform-tab { display: inline-flex; padding: 0.5rem 1.25rem; font-size: 0.9rem; font-weight: 600; border-radius: var(--radius-pill); cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-muted); transition: all 0.2s; margin-right: 0.5rem; } .platform-tab.active { background: var(--accent); color: white; border-color: var(--accent); } .troubleshoot { background: var(--surface); border-radius: var(--radius); padding: 1.25rem; margin-top: 1rem; } .troubleshoot h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; } .troubleshoot li { font-size: 0.85rem; color: var(--text-muted); line-height: 1.7; }</style>
+</head>
+<body>
+  <main class="guide">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Enable Notifications</h2>
+    <p>Get notified instantly when a broadcast goes live. Choose your device below for setup instructions.</p>
+
+    <div style="margin-bottom:1.5rem;">
+      <button class="platform-tab active" onclick="showPlatform('iphone')">📱 iPhone</button>
+      <button class="platform-tab" onclick="showPlatform('android')">🤖 Android</button>
+      <button class="platform-tab" onclick="showPlatform('desktop')">💻 Desktop</button>
+    </div>
+
+    <!-- iPhone -->
+    <div id="guide-iphone">
+      <h3>iPhone / iPad (iOS 16.4+)</h3>
+      <p>Apple requires you to add UmmahCast to your Home Screen first. Push notifications only work when opened from the Home Screen icon — not from Safari directly.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Open Safari</strong> <span>— it must be Safari, not Chrome or another browser. Go to <strong>ummahcast.com</strong></span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Tap the Share button</strong> <span>— the square with an upward arrow (↑) at the bottom of the screen</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Tap "Add to Home Screen"</strong> <span>— scroll down in the share sheet if you don't see it. Tap "Add" to confirm.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Open from Home Screen</strong> <span>— find the UmmahCast icon on your Home Screen and tap it. It will open as a standalone app.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text"><strong>Tap "🔔 Push Notifications"</strong> <span>— then tap "Allow" on the iOS permission prompt. Done!</span></div>
+      </div>
+
+      <div class="troubleshoot">
+        <h4>Troubleshooting</h4>
+        <ul>
+          <li>Must use <strong>Safari</strong> — other iOS browsers don't support Add to Home Screen with push</li>
+          <li>Must open from the <strong>Home Screen icon</strong> — push doesn't work in regular Safari</li>
+          <li>Requires <strong>iOS 16.4 or later</strong> — check Settings → General → About</li>
+          <li>Check <strong>Settings → Notifications → UmmahCast</strong> to verify notifications are enabled</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Android -->
+    <div id="guide-android" style="display:none;">
+      <h3>Android (Chrome)</h3>
+      <p>Android Chrome supports push notifications directly — no special setup needed.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Open Chrome</strong> <span>— go to <strong>ummahcast.com</strong></span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Tap "🔔 Push Notifications"</strong> <span>— the button on the main page</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Tap "Allow"</strong> <span>— on the Chrome permission prompt. That's it!</span></div>
+      </div>
+
+      <div class="troubleshoot">
+        <h4>If notifications were previously blocked</h4>
+        <ul>
+          <li>Tap the <strong>lock icon</strong> next to the URL → Permissions → Notifications → Allow</li>
+          <li>Or go to <strong>Chrome Settings → Site Settings → Notifications</strong> → find UmmahCast → Allow</li>
+        </ul>
+      </div>
+
+      <p style="margin-top:1rem;"><strong>Optional:</strong> Tap the three-dot menu → "Install app" to add UmmahCast to your Home Screen for the best experience.</p>
+    </div>
+
+    <!-- Desktop -->
+    <div id="guide-desktop" style="display:none;">
+      <h3>Desktop (Chrome / Edge / Firefox)</h3>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Visit ummahcast.com</strong> <span>— in any modern browser</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Click "🔔 Push Notifications"</strong></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Click "Allow"</strong> <span>— on the browser permission prompt</span></div>
+      </div>
+
+      <div class="troubleshoot">
+        <h4>Note</h4>
+        <ul>
+          <li><strong>Brave browser</strong> blocks push notifications by default — go to brave://settings/privacy and enable "Use Google services for push messaging"</li>
+          <li>macOS users may need to allow notifications in <strong>System Settings → Notifications → Chrome/Firefox</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Email Notifications -->
+    <div style="margin-top:2.5rem; border-top:1px solid var(--border); padding-top:2rem;">
+      <h3 style="margin-top:0;">Get Email Notifications</h3>
+      <p>Prefer email? Enter your address below and we'll send you an alert whenever a broadcast goes live.</p>
+
+      <div id="email-form-area">
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <input type="email" id="email-input" placeholder="your@email.com" maxlength="200"
+            style="flex:1; min-width:200px; padding:0.6rem 0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;">
+          <button class="btn-primary" onclick="subscribeEmail()" id="email-btn"
+            style="width:auto; padding:0.6rem 1.25rem; font-size:0.85rem;">Subscribe</button>
+        </div>
+        <div id="email-msg" style="font-size:0.8rem; margin-top:0.5rem; display:none;"></div>
+      </div>
+
+      <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.75rem;">
+        We'll send a verification email first. You can unsubscribe anytime with one click.
+      </p>
+
+      <details style="margin-top:1rem;">
+        <summary style="cursor:pointer; font-size:0.8rem; color:var(--text-muted);">Already subscribed? Find my preferences</summary>
+        <div style="margin-top:0.75rem;">
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Enter the email you subscribed with — we'll send you a link to your preferences page.</p>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <input type="email" id="find-input" placeholder="your@email.com" maxlength="200"
+              style="flex:1; min-width:200px; padding:0.6rem 0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;">
+            <button class="btn-secondary" onclick="findPrefs()" id="find-btn"
+              style="width:auto; padding:0.6rem 1.25rem; font-size:0.85rem;">Send link</button>
+          </div>
+          <div id="find-msg" style="font-size:0.8rem; margin-top:0.5rem; display:none;"></div>
+        </div>
+      </details>
+    </div>
+
+    <div style="margin-top:2rem; text-align:center;">
+      <a href="/" class="btn-secondary" style="display:inline-flex;width:auto;padding:0.4rem 1rem;font-size:0.85rem;border-radius:var(--radius-pill);text-decoration:none;">← Back to UmmahCast</a>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    function showPlatform(id) {
+      document.querySelectorAll('[id^="guide-"]').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.platform-tab').forEach(el => el.classList.remove('active'));
+      document.getElementById('guide-' + id).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    async function subscribeEmail() {
+      const input = document.getElementById('email-input');
+      const btn = document.getElementById('email-btn');
+      const msg = document.getElementById('email-msg');
+      const email = input.value.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        msg.textContent = 'Please enter a valid email address.';
+        msg.style.color = 'var(--danger)';
+        msg.style.display = 'block';
+        return;
+      }
+      btn.textContent = 'Subscribing...';
+      btn.disabled = true;
+
+      // Detect org from URL or default
+      const pathParts = window.location.pathname.replace(/^\//, '').split('/');
+      const nonOrgPaths = ['broadcaster-login', 'faq', 'privacy', 'notifications-guide', 'contact', 'timeline', ''];
+      const orgSlug = pathParts[0] && !nonOrgPaths.includes(pathParts[0]) ? pathParts[0] : 'default';
+
+      try {
+        const res = await fetch(`/api/orgs/${orgSlug}/email/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msg.textContent = 'Check your inbox for a verification email!';
+          msg.style.color = 'var(--accent)';
+          input.value = '';
+        } else {
+          msg.textContent = data.error || 'Something went wrong.';
+          msg.style.color = 'var(--danger)';
+        }
+      } catch {
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.color = 'var(--danger)';
+      }
+      msg.style.display = 'block';
+      btn.textContent = 'Subscribe';
+      btn.disabled = false;
+    }
+
+    async function findPrefs() {
+      const input = document.getElementById('find-input');
+      const btn = document.getElementById('find-btn');
+      const msg = document.getElementById('find-msg');
+      const email = input.value.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        msg.textContent = 'Please enter a valid email address.';
+        msg.style.color = 'var(--danger)';
+        msg.style.display = 'block';
+        return;
+      }
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+
+      const pathParts = window.location.pathname.replace(/^\//, '').split('/');
+      const nonOrgPaths = ['broadcaster-login', 'faq', 'privacy', 'notifications-guide', 'contact', 'timeline', 'preferences', ''];
+      const orgSlug = pathParts[0] && !nonOrgPaths.includes(pathParts[0]) ? pathParts[0] : 'default';
+
+      try {
+        const res = await fetch(`/api/orgs/${orgSlug}/email/find`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        msg.textContent = data.message || "If that email is subscribed, we've sent a link.";
+        msg.style.color = 'var(--accent)';
+      } catch {
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.color = 'var(--danger)';
+      }
+      msg.style.display = 'block';
+      btn.textContent = 'Send link';
+      btn.disabled = false;
+    }
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

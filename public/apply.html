@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Get Your Mosque Online</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .apply { max-width: 540px; width: 100%; }
+    .apply p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1rem; }
+    .form-field { margin-bottom: 1rem; }
+    .form-field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 500; }
+    .form-field input, .form-field textarea {
+      width: 100%; padding: 0.65rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 0.9rem; font-family: inherit;
+    }
+    .form-field textarea { min-height: 120px; resize: vertical; }
+    .form-field input:focus, .form-field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .form-field .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .success-card { background: var(--accent); color: white; padding: 2rem; border-radius: var(--radius); text-align: center; }
+    .honeypot { position: absolute; left: -9999px; }
+  </style>
+</head>
+<body>
+  <main class="apply">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Get Your Mosque on UmmahCast</h2>
+    <p>UmmahCast is free and open to mosque communities everywhere. Tell us about your mosque and we'll be in touch to set up your community space.</p>
+
+    <div class="card" id="form-card">
+      <form id="apply-form" onsubmit="return submitApply(event)">
+        <div class="form-field">
+          <label for="apply-org">Mosque / Organization Name</label>
+          <input type="text" id="apply-org" name="orgName" required maxlength="200" placeholder="e.g. Masjid Al-Noor">
+        </div>
+        <div class="form-field">
+          <label for="apply-name">Your Name</label>
+          <input type="text" id="apply-name" name="contactName" required maxlength="100" placeholder="Who should we contact?">
+        </div>
+        <div class="form-field">
+          <label for="apply-email">Your Email</label>
+          <input type="email" id="apply-email" name="contactEmail" required maxlength="200" placeholder="your@email.com">
+          <div class="hint">We'll send your access link here once approved.</div>
+        </div>
+        <div class="form-field">
+          <label for="apply-city">City (optional)</label>
+          <input type="text" id="apply-city" name="city" maxlength="100" placeholder="e.g. Dearborn, MI">
+        </div>
+        <div class="form-field">
+          <label for="apply-desc">Tell us about your community (optional)</label>
+          <textarea id="apply-desc" name="description" maxlength="2000" placeholder="Size of your jama'ah, what programming you'd want to broadcast, anything else we should know..."></textarea>
+        </div>
+
+        <div class="honeypot">
+          <label for="apply-website">Website</label>
+          <input type="text" id="apply-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <label style="display:flex;align-items:flex-start;gap:0.55rem;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.85rem;line-height:1.5;cursor:pointer;">
+          <input type="checkbox" id="apply-tos" required style="margin-top:0.2rem;flex-shrink:0;">
+          <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener" style="color:var(--accent);">Terms of Service</a> on behalf of my Organization, including the copyright and DMCA provisions.</span>
+        </label>
+
+        <div id="apply-error" style="color:var(--danger);font-size:0.85rem;margin-bottom:0.75rem;display:none;"></div>
+        <button type="submit" class="btn-primary" id="apply-submit">Request Access</button>
+      </form>
+    </div>
+
+    <div class="success-card" id="success-card" style="display:none;">
+      <h3 style="margin-top:0;">JazakAllah Khair!</h3>
+      <p style="color:rgba(255,255,255,0.9);margin:0;">Your application has been received. We'll review it and email you when your community space is ready — usually within a few days.</p>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    let submitCount = 0;
+    const loadTime = Date.now();
+
+    async function submitApply(e) {
+      e.preventDefault();
+      const honeypot = document.getElementById('apply-website').value;
+      if (honeypot) return false;
+
+      const elapsed = Date.now() - loadTime;
+      if (elapsed < 3000) {
+        showError('Please review and try again.');
+        return false;
+      }
+      if (submitCount > 0) return false;
+
+      const btn = document.getElementById('apply-submit');
+      btn.textContent = 'Submitting...';
+      btn.disabled = true;
+
+      const data = {
+        orgName: document.getElementById('apply-org').value.trim(),
+        contactName: document.getElementById('apply-name').value.trim(),
+        contactEmail: document.getElementById('apply-email').value.trim().toLowerCase(),
+        city: document.getElementById('apply-city').value.trim(),
+        description: document.getElementById('apply-desc').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/orgs/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          submitCount++;
+          document.getElementById('form-card').style.display = 'none';
+          document.getElementById('success-card').style.display = 'block';
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showError(err.error || 'Something went wrong. Please try again.');
+          btn.textContent = 'Request Access';
+          btn.disabled = false;
+        }
+      } catch {
+        showError('Network error. Please try again.');
+        btn.textContent = 'Request Access';
+        btn.disabled = false;
+      }
+      return false;
+    }
+
+    function showError(m) {
+      const el = document.getElementById('apply-error');
+      el.textContent = m;
+      el.style.display = 'block';
+    }
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UmmahCast">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UmmahCast">
+  <meta property="og:title" content="UmmahCast — Mosque Live Audio">
+  <meta property="og:description" content="Listen to live broadcasts from your mosque community. No app needed.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://ummahcast.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="UmmahCast — Mosque Live Audio">
+  <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
+  <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
+    <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+</head>
+<body>
+  <main class="container">
+    <header class="org-hero" id="org-hero" hidden>
+      <div class="org-hero-row">
+        <img id="org-hero-logo" class="org-hero-logo" alt="" hidden referrerpolicy="no-referrer" loading="lazy">
+        <div class="org-hero-text">
+          <h1 id="org-name" class="org-hero-name"></h1>
+          <p id="org-desc" class="org-hero-desc" hidden></p>
+        </div>
+      </div>
+      <div class="org-hero-status" id="org-hero-status" hidden></div>
+    </header>
+
+    <div class="card" style="padding:1rem 1.25rem; margin-bottom:1rem;">
+      <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.75rem;">Get Notified When We're Live</div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <button class="btn-secondary" id="btn-notify" style="width:auto; padding:0.4rem 0.8rem; font-size:0.8rem; border-radius:var(--radius-pill);" aria-label="Toggle push notifications">
+          🔔 Push Notifications
+        </button>
+        <a href="/notifications-guide" class="btn-secondary" style="display:inline-flex; align-items:center; gap:0.3rem; width:auto; padding:0.4rem 0.8rem; font-size:0.8rem; border-radius:var(--radius-pill); text-decoration:none; min-height:auto;">
+          📧 Email Alerts
+        </a>
+      </div>
+      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.5rem;">Push notifications appear instantly. Email alerts are sent when a broadcast goes live.</div>
+    </div>
+
+    <div id="rooms" role="list" aria-label="Stream rooms"></div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/follow.js"></script>
+  <script>
+    const orgSlug = window.location.pathname.replace(/^\//, '').replace(/\/.*/, '');
+    window._orgSlug = orgSlug;
+
+    renderNav('org-landing');
+
+    async function init() {
+      // Check if user is a broadcaster for this org
+      try {
+        const meRes = await fetch('/api/broadcaster/me');
+        if (meRes.ok) {
+          const me = await meRes.json();
+          window._isBroadcaster = me.isSuperadmin || me.orgSlug === orgSlug;
+        }
+      } catch {}
+
+      const orgRes = await fetch(`/api/orgs/${orgSlug}`);
+      if (!orgRes.ok) { window.location.href = '/'; return; }
+      const org = await orgRes.json();
+      window._org = org;
+
+      const hero = document.getElementById('org-hero');
+      const nameEl = document.getElementById('org-name');
+      const descEl = document.getElementById('org-desc');
+      const logoEl = document.getElementById('org-hero-logo');
+
+      if (org.name !== 'UmmahCast') {
+        nameEl.textContent = org.name;
+        hero.hidden = false;
+      }
+      document.title = `${org.name} — UmmahCast`;
+      if (org.description) {
+        descEl.textContent = org.description;
+        descEl.hidden = false;
+      }
+      if (org.logoUrl) {
+        logoEl.src = org.logoUrl;
+        logoEl.alt = `${org.name} logo`;
+        logoEl.hidden = false;
+      }
+      if (org.accentColor) document.documentElement.style.setProperty('--accent', org.accentColor);
+
+      // Telegram link is hardcoded in HTML — no dynamic update needed
+
+      setupPush();
+
+      // Show skeleton while rooms load
+      showSkeleton(document.getElementById('rooms'), 2);
+      loadRooms();
+
+      // First visit onboarding
+      // For org landing, "I want to listen" should scroll to the rooms list rather than leave the page
+      Onboarding.show({
+        onListen: () => document.getElementById('rooms')?.scrollIntoView({ behavior: 'smooth' }),
+      });
+    }
+
+    async function setupPush() {
+      const btnNotify = document.getElementById('btn-notify');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        // iOS Safari requires "Add to Home Screen" for push
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+        if (isIOS && !isStandalone) {
+          btnNotify.textContent = '🔔 Add to Home Screen for notifications';
+          btnNotify.style.fontSize = '0.7rem';
+        } else {
+          btnNotify.textContent = '🔔 Notifications unavailable';
+        }
+        btnNotify.disabled = true; return;
+      }
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { btnNotify.textContent = '🔔 Notifications ON'; btnNotify.style.background = 'var(--green)'; btnNotify.style.color = '#000'; }
+      btnNotify.addEventListener('click', async () => {
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch('/api/push/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+          await sub.unsubscribe();
+          btnNotify.textContent = '🔔 Push Notifications'; btnNotify.style.background = ''; btnNotify.style.color = ''; return;
+        }
+        const res = await fetch('/api/vapid-key');
+        const { key } = await res.json();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+        await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, orgSlug }) });
+        btnNotify.textContent = '🔔 Notifications ON'; btnNotify.style.background = 'var(--green)'; btnNotify.style.color = '#000';
+      });
+    }
+
+    function renderAvatarStack(initials, total) {
+      if (!Array.isArray(initials) || initials.length === 0) return '';
+      const more = Math.max(0, (total || 0) - initials.length);
+      const dots = initials.map(ch => `<span class="avatar-sm">${esc(ch)}</span>`).join('');
+      const moreSpan = more > 0 ? `<span class="avatar-count">+${more}</span>` : '';
+      return `<span class="avatar-stack" style="margin-left:0.5rem;vertical-align:middle;">${dots}${moreSpan}</span>`;
+    }
+
+    let heroStatusInterval = null;
+    function updateHeroStatus(rooms) {
+      const statusEl = document.getElementById('org-hero-status');
+      if (!statusEl) return;
+      const liveRoom = rooms.find(r => r.live);
+      let nextShow = null;
+      for (const r of rooms) {
+        if (r.nextShow && (!nextShow || new Date(r.nextShow.startsAt) < new Date(nextShow.startsAt))) {
+          nextShow = { ...r.nextShow, roomName: r.name };
+        }
+      }
+      if (liveRoom) {
+        statusEl.innerHTML = `<span class="badge-live"><span class="dot"></span>LIVE NOW<span class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span></span></span><span class="org-hero-status-text">${esc(liveRoom.name)} is broadcasting</span>`;
+        statusEl.hidden = false;
+      } else if (nextShow) {
+        const ms = new Date(nextShow.startsAt + 'Z') - Date.now();
+        if (ms > 0) {
+          statusEl.innerHTML = `<span class="org-hero-status-icon" aria-hidden="true">📅</span><span class="org-hero-status-text">Next broadcast: <strong>${esc(nextShow.roomName)}</strong> · ${esc(nextShow.title)} in ${formatCountdown(ms)}</span>`;
+          statusEl.hidden = false;
+        } else {
+          statusEl.hidden = true;
+        }
+      } else {
+        statusEl.hidden = true;
+      }
+    }
+
+    function formatCountdown(ms) {
+      const totalMin = Math.floor(ms / 60000);
+      if (totalMin < 60) return `${totalMin}m`;
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      if (h < 24) return `${h}h ${m}m`;
+      const d = Math.floor(h / 24);
+      return `${d}d ${h % 24}h`;
+    }
+
+    async function loadRooms() {
+      const rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json();
+      window._rooms = rooms;
+      updateHeroStatus(rooms);
+      if (heroStatusInterval) clearInterval(heroStatusInterval);
+      heroStatusInterval = setInterval(() => updateHeroStatus(window._rooms || []), 30000);
+
+      const container = document.getElementById('rooms');
+      container.innerHTML = '';
+      if (rooms.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📻</div><div class="empty-title">No rooms yet</div><div class="empty-body">This community hasn\'t set up any broadcast rooms yet — check back soon, inshaAllah.</div></div>';
+        return;
+      }
+      rooms.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card'; card.style.cursor = 'pointer'; card.setAttribute('role', 'listitem');
+        const liveLabel = r.live ? '<span class="badge-live"><span class="dot"></span>LIVE<span class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span></span></span>' : '<span style="color:var(--text-muted);">○ Offline</span>';
+        const ll = r.listeners > 0 ? `<span style="margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted);">👤 ${r.listeners}</span>${renderAvatarStack(r.listenerInitials, r.listeners)}` : '';
+        const pw = r.hasPassword ? '<span style="font-size:0.75rem; color:var(--text-muted);"> 🔒</span>' : '';
+        const sched = r.nextShow ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">📅 ${esc(r.nextShow.title)}</div>` : '';
+        const btnLabel = window._isBroadcaster ? (r.live ? 'Go Live' : 'Broadcast') : (r.live ? 'Listen Now' : 'View');
+        const btnClass = r.live ? 'btn-primary' : 'btn-secondary';
+        if (r.live) card.classList.add('card-live');
+        card.classList.add('card-interactive');
+        // Build card with bell button (only shown for non-broadcaster listeners)
+        const showBell = !window._isBroadcaster;
+        card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;">
+          <div style="min-width:0;flex:1;"><strong style="font-size:1rem;">${esc(r.name)}</strong>${pw}<div style="margin-top:0.35rem;">${liveLabel}${ll}</div>${sched}</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+            ${showBell ? `<span class="bell-slot" data-room="${esc(r.slug)}" data-room-name="${esc(r.name)}"></span>` : ''}
+            <button class="${btnClass}" style="width:auto;padding:0.5rem 1.25rem;font-size:0.85rem;">${btnLabel}</button>
+          </div>
+        </div>`;
+        card.addEventListener('click', (e) => {
+          // Don't navigate if click was on bell
+          if (e.target.closest('.bell-btn')) return;
+          if (window._isBroadcaster) {
+            window.location.href = `/${orgSlug}/broadcast?room=${r.slug}`;
+          } else {
+            window.location.href = `/${orgSlug}/listen?room=${r.slug}`;
+          }
+        });
+        // Attach bell behavior
+        if (showBell && window.FollowBell) {
+          const slot = card.querySelector('.bell-slot');
+          if (slot) {
+            const bell = window.FollowBell.create({ orgSlug, roomSlug: r.slug, roomName: r.name, following: false });
+            slot.replaceWith(bell);
+          }
+        }
+        container.appendChild(card);
+      });
+
+      // Hydrate bell states from server (which rooms is this user already following?)
+      if (window.FollowBell) window.FollowBell.hydrate(orgSlug);
+    }
+    const roomPollInterval = setInterval(loadRooms, 10000);
+    window.addEventListener('beforeunload', () => {
+      clearInterval(roomPollInterval);
+      if (heroStatusInterval) clearInterval(heroStatusInterval);
+    });
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    init();
+  </script>
+<script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

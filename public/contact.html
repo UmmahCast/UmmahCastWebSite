@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Feedback & Contact</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .contact { max-width: 540px; width: 100%; }
+    .contact p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1rem; }
+    .form-field { margin-bottom: 1rem; }
+    .form-field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 500; }
+    .form-field input, .form-field textarea, .form-field select {
+      width: 100%; padding: 0.65rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 0.9rem; font-family: inherit;
+    }
+    .form-field textarea { min-height: 120px; resize: vertical; }
+    .form-field input:focus, .form-field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .success-card { background: var(--accent); color: white; padding: 2rem; border-radius: var(--radius); text-align: center; }
+    .success-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .honeypot { position: absolute; left: -9999px; }
+  </style>
+</head>
+<body>
+  <main class="contact">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Feedback & Contact</h2>
+    <p>UmmahCast is built for the community, by the community. Your feedback helps us improve. Whether it's a feature request, a bug report, or just a kind word — we want to hear from you.</p>
+
+    <div class="card" id="form-card">
+      <form id="contact-form" onsubmit="return submitForm(event)">
+        <div class="form-field">
+          <label for="contact-name">Your Name</label>
+          <input type="text" id="contact-name" name="name" placeholder="How should we address you?" required maxlength="100">
+        </div>
+
+        <div class="form-field">
+          <label for="contact-email">Email (optional)</label>
+          <input type="email" id="contact-email" name="email" placeholder="Only if you'd like a reply" maxlength="200">
+        </div>
+
+        <div class="form-field">
+          <label for="contact-type">What's this about?</label>
+          <select id="contact-type" name="type">
+            <option value="feedback">General Feedback</option>
+            <option value="feature">Feature Request</option>
+            <option value="bug">Bug Report</option>
+            <option value="mosque">My Mosque Wants to Join</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="contact-message">Your Message</label>
+          <textarea id="contact-message" name="message" placeholder="Tell us what's on your mind..." required maxlength="2000"></textarea>
+        </div>
+
+        <!-- Honeypot — hidden from users, bots fill it -->
+        <div class="honeypot">
+          <label for="contact-website">Website</label>
+          <input type="text" id="contact-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div id="form-error" style="color:var(--danger);font-size:0.85rem;margin-bottom:0.75rem;display:none;"></div>
+
+        <button type="submit" class="btn-primary" id="submit-btn">Send Feedback</button>
+      </form>
+    </div>
+
+    <div class="success-card" id="success-card" style="display:none;">
+      <h3>JazakAllah Khair!</h3>
+      <p style="color:rgba(255,255,255,0.9);margin:0;">Your feedback has been received. We appreciate you taking the time to help improve UmmahCast for the community.</p>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    let submitCount = 0;
+    const loadTime = Date.now();
+
+    async function submitForm(e) {
+      e.preventDefault();
+
+      // Bot checks
+      const honeypot = document.getElementById('contact-website').value;
+      if (honeypot) return false; // Bot filled hidden field
+
+      const elapsed = Date.now() - loadTime;
+      if (elapsed < 3000) { // Form submitted too fast — likely bot
+        document.getElementById('form-error').textContent = 'Please wait a moment before submitting.';
+        document.getElementById('form-error').style.display = 'block';
+        return false;
+      }
+
+      if (submitCount > 0) return false; // Prevent double submit
+
+      const btn = document.getElementById('submit-btn');
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+
+      const data = {
+        name: document.getElementById('contact-name').value.trim(),
+        email: document.getElementById('contact-email').value.trim(),
+        type: document.getElementById('contact-type').value,
+        message: document.getElementById('contact-message').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        if (res.ok) {
+          submitCount++;
+          document.getElementById('form-card').style.display = 'none';
+          document.getElementById('success-card').style.display = 'block';
+        } else {
+          const err = await res.json();
+          document.getElementById('form-error').textContent = err.error || 'Something went wrong. Please try again.';
+          document.getElementById('form-error').style.display = 'block';
+          btn.textContent = 'Send Feedback';
+          btn.disabled = false;
+        }
+      } catch {
+        document.getElementById('form-error').textContent = 'Network error. Please try again.';
+        document.getElementById('form-error').style.display = 'block';
+        btn.textContent = 'Send Feedback';
+        btn.disabled = false;
+      }
+
+      return false;
+    }
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

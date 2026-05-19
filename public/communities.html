@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Communities</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <meta name="description" content="Discover mosque communities broadcasting live on UmmahCast.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UmmahCast — Communities">
+  <meta property="og:description" content="Discover mosque communities broadcasting live on UmmahCast.">
+  <meta property="og:image" content="https://ummahcast.com/og-image.png">
+  <meta property="og:url" content="https://ummahcast.com/communities">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .communities-page { max-width: 720px; width: 100%; }
+    .communities-page h2 { margin-bottom: 0.25rem; }
+    .communities-page > p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .filter-bar {
+      display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .filter-bar input[type="search"] {
+      flex: 1; min-width: 180px;
+      padding: 0.55rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .filter-bar input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .filter-bar select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      color: var(--text);
+      padding: 0.55rem 0.75rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .filter-toggle {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .filter-toggle.on { background: var(--accent); border-color: var(--accent); color: white; }
+
+    .summary-line { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+
+    .community-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .community-card {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      transition: border-color 0.15s, transform 0.05s;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .community-card:hover { border-color: var(--accent); }
+    .community-card:active { transform: scale(0.99); }
+    .community-card.live { border-color: var(--live); }
+
+    .cc-info { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
+    .cc-logo {
+      width: 44px; height: 44px;
+      border-radius: 8px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+      object-fit: cover;
+    }
+    .cc-text { min-width: 0; flex: 1; }
+    .cc-name {
+      font-weight: 600; font-size: 0.95rem;
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .cc-desc {
+      font-size: 0.78rem; color: var(--text-muted);
+      margin-top: 0.2rem;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .cc-meta {
+      font-size: 0.72rem; color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: var(--live);
+      color: white;
+      padding: 0.1rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .live-pill::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: white; animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .cc-action {
+      flex-shrink: 0;
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      color: white;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .community-card.live .cc-action { background: var(--live); }
+
+    .empty {
+      text-align: center; color: var(--text-muted); font-size: 0.85rem;
+      padding: 2.5rem 1rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+    .empty a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main class="communities-page">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Communities</h2>
+    <p>Mosques and Islamic communities broadcasting on UmmahCast. Tap one to listen.</p>
+
+    <div class="filter-bar">
+      <input type="search" id="search" placeholder="Search communities…" aria-label="Search communities">
+      <select id="sort" aria-label="Sort">
+        <option value="live">Live first</option>
+        <option value="name">Name A–Z</option>
+        <option value="popular">Most listeners</option>
+      </select>
+      <button type="button" id="live-toggle" class="filter-toggle" aria-pressed="false">🔴 Live now</button>
+    </div>
+
+    <div class="summary-line" id="summary">Loading…</div>
+    <div class="community-list" id="list" role="list"></div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script src="/js/ui.js"></script>
+  <script>renderNav('info');</script>
+  <script>
+    let allOrgs = [];
+    let liveOnly = false;
+    let sortKey = 'live';
+    let query = '';
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+    function render() {
+      const list = document.getElementById('list');
+      const summary = document.getElementById('summary');
+
+      let filtered = allOrgs.slice();
+      if (liveOnly) filtered = filtered.filter(o => o.anyLive);
+      if (query) {
+        const q = query.toLowerCase();
+        filtered = filtered.filter(o => (o.name || '').toLowerCase().includes(q) || (o.description || '').toLowerCase().includes(q));
+      }
+      if (sortKey === 'name') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      else if (sortKey === 'popular') filtered.sort((a, b) => (b.totalListeners || 0) - (a.totalListeners || 0));
+      else /* live */ filtered.sort((a, b) => (b.anyLive - a.anyLive) || (b.totalListeners - a.totalListeners) || (a.name || '').localeCompare(b.name || ''));
+
+      const total = allOrgs.length;
+      const liveTotal = allOrgs.filter(o => o.anyLive).length;
+      summary.innerHTML = filtered.length === total
+        ? `${total} ${total === 1 ? 'community' : 'communities'} · ${liveTotal} live now`
+        : `Showing ${filtered.length} of ${total}`;
+
+      if (filtered.length === 0) {
+        const icon = query ? '🔍' : (liveOnly ? '🌙' : '🕌');
+        const title = query ? 'No matches' : (liveOnly ? 'Nothing live right now' : 'No communities yet');
+        const body = query
+          ? `No communities match "${esc(query)}". Try a different search.`
+          : (liveOnly ? 'No mosques are broadcasting at the moment. Check back later, or browse all communities.' : 'Be the first community on UmmahCast.');
+        list.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">${icon}</div>
+          <div class="empty-title">${title}</div>
+          <div class="empty-body">${body}</div>
+          <div class="empty-cta"><a href="/apply" class="btn-secondary" style="display:inline-block;width:auto;padding:0.4rem 0.9rem;font-size:0.8rem;text-decoration:none;">Get your mosque on UmmahCast</a></div>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map(o => {
+        const logo = o.logoUrl
+          ? `<img class="cc-logo" src="${esc(o.logoUrl)}" alt="">`
+          : `<div class="cc-logo">🕌</div>`;
+        const livePill = o.anyLive ? `<span class="live-pill">Live<span class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span></span></span>` : '';
+        const meta = [
+          o.roomCount ? `${o.roomCount} room${o.roomCount === 1 ? '' : 's'}` : '',
+          o.totalListeners > 0 ? `👤 ${o.totalListeners} listening` : '',
+        ].filter(Boolean).join(' · ');
+        return `<a class="community-card${o.anyLive ? ' live' : ''}" href="/${esc(o.slug)}" role="listitem">
+          <div class="cc-info">
+            ${logo}
+            <div class="cc-text">
+              <div class="cc-name">${esc(o.name)} ${livePill}</div>
+              ${o.description ? `<div class="cc-desc">${esc(o.description)}</div>` : ''}
+              ${meta ? `<div class="cc-meta">${esc(meta)}</div>` : ''}
+            </div>
+          </div>
+          <div class="cc-action">${o.anyLive ? 'Listen' : 'Visit'}</div>
+        </a>`;
+      }).join('');
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/orgs');
+        if (!res.ok) throw new Error();
+        allOrgs = await res.json();
+        render();
+      } catch {
+        document.getElementById('list').innerHTML = `<div class="empty">Couldn't load communities.</div>`;
+        document.getElementById('summary').textContent = '';
+      }
+    }
+
+    document.getElementById('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
+    document.getElementById('sort').addEventListener('change', (e) => { sortKey = e.target.value; render(); });
+    document.getElementById('live-toggle').addEventListener('click', (e) => {
+      liveOnly = !liveOnly;
+      e.target.classList.toggle('on', liveOnly);
+      e.target.setAttribute('aria-pressed', liveOnly ? 'true' : 'false');
+      render();
+    });
+
+    load();
+    // Refresh live state every 20s
+    setInterval(load, 20000);
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

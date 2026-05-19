@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Open Source Acknowledgements</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .legal { max-width: 720px; width: 100%; }
+    .legal h3 { font-size: 1.05rem; font-weight: 600; color: var(--text); margin: 1.75rem 0 0.5rem; }
+    .legal p, .legal li, .legal td { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+    .legal a { color: var(--accent); text-decoration: none; }
+    .legal a:hover { text-decoration: underline; }
+    .legal strong { color: var(--text); font-weight: 600; }
+    .legal table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 0.75rem; font-size: 0.8rem; }
+    .legal th { text-align: left; font-weight: 600; color: var(--text-muted); padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .legal td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .legal td:nth-child(2) { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; color: var(--text); white-space: nowrap; }
+    .legal td:nth-child(1) { font-weight: 500; color: var(--text); }
+    .legal .meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+    .legal .gratitude { font-style: italic; text-align: center; margin: 2rem 0 1rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <main class="legal">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Open Source Acknowledgements</h2>
+    <p class="meta">Last reviewed: May 18, 2026</p>
+
+    <h3>UmmahCast's own license</h3>
+    <p>UmmahCast is licensed under the <strong>GNU Affero General Public License v3.0 (AGPL-3.0)</strong>. The license was chosen to keep the platform community-owned: anyone may use, modify, or self-host UmmahCast, but any modified version offered as a hosted service must also make its source available to its users. This is the spirit of "free, forever, as a sadaqah" enforced in code.</p>
+    <p>Copyright &copy; 2026 Brandon Lucariello. The full license text is available at <a href="https://www.gnu.org/licenses/agpl-3.0.html">gnu.org/licenses/agpl-3.0</a>.</p>
+
+    <h3>Third-party software we rely on</h3>
+    <p>The packages and components below power UmmahCast under the hood. Gratitude to the communities and maintainers who made them possible.</p>
+
+    <h3>Web framework &amp; middleware</h3>
+    <table>
+      <thead><tr><th>Package</th><th>License</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/expressjs/express">express</a></td><td>MIT</td><td>HTTP server framework</td></tr>
+        <tr><td><a href="https://github.com/helmetjs/helmet">helmet</a></td><td>MIT</td><td>Security headers</td></tr>
+        <tr><td><a href="https://github.com/expressjs/compression">compression</a></td><td>MIT</td><td>HTTP response compression</td></tr>
+        <tr><td><a href="https://github.com/expressjs/cookie-parser">cookie-parser</a></td><td>MIT</td><td>Cookie parsing</td></tr>
+        <tr><td><a href="https://github.com/tj/node-cookie-signature">cookie-signature</a></td><td>MIT</td><td>Signed-cookie utilities</td></tr>
+        <tr><td><a href="https://github.com/express-rate-limit/express-rate-limit">express-rate-limit</a></td><td>MIT</td><td>Per-route rate limiting</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Real-time &amp; storage</h3>
+    <table>
+      <thead><tr><th>Package</th><th>License</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/websockets/ws">ws</a></td><td>MIT</td><td>WebSocket server (live audio + chat)</td></tr>
+        <tr><td><a href="https://github.com/WiseLibs/better-sqlite3">better-sqlite3</a></td><td>MIT</td><td>SQLite driver</td></tr>
+        <tr><td><a href="https://sqlite.org">SQLite</a></td><td>Public Domain</td><td>Embedded database engine</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Notifications &amp; auth</h3>
+    <table>
+      <thead><tr><th>Package</th><th>License</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/web-push-libs/web-push">web-push</a></td><td>MPL-2.0</td><td>VAPID push delivery</td></tr>
+        <tr><td><a href="https://github.com/nodemailer/nodemailer">nodemailer</a></td><td>MIT-0</td><td>SMTP delivery with multi-provider failover</td></tr>
+        <tr><td><a href="https://github.com/speakeasyjs/speakeasy">speakeasy</a></td><td>MIT</td><td>TOTP / 2FA</td></tr>
+        <tr><td><a href="https://github.com/soldair/node-qrcode">qrcode</a></td><td>MIT</td><td>QR rendering for 2FA enrollment</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Media &amp; archives</h3>
+    <table>
+      <thead><tr><th>Package</th><th>License</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/lovell/sharp">sharp</a></td><td>Apache-2.0</td><td>Image processing + EXIF stripping</td></tr>
+        <tr><td><a href="https://github.com/expressjs/multer">multer</a></td><td>MIT</td><td>File-upload middleware</td></tr>
+        <tr><td><a href="https://github.com/archiverjs/node-archiver">archiver</a></td><td>MIT</td><td>Org-deletion zip generation</td></tr>
+        <tr><td><a href="https://github.com/uuidjs/uuid">uuid</a></td><td>MIT</td><td>Identifier generation</td></tr>
+      </tbody>
+    </table>
+
+    <h3>System &amp; infrastructure</h3>
+    <table>
+      <thead><tr><th>Component</th><th>License</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://nodejs.org">Node.js 20</a></td><td>MIT</td><td>JavaScript runtime</td></tr>
+        <tr><td><a href="https://alpinelinux.org">Alpine Linux</a></td><td>MIT + others</td><td>Container base image</td></tr>
+        <tr><td><a href="https://github.com/cloudflare/cloudflared">cloudflared</a></td><td>Apache-2.0</td><td>Outbound tunnel (HTTPS ingress without inbound ports)</td></tr>
+        <tr><td><a href="https://ffmpeg.org">FFmpeg</a></td><td>LGPL-2.1+</td><td>Installed in container (dormant)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Fonts</h3>
+    <table>
+      <thead><tr><th>Family</th><th>License</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/alif-type/amiri">Amiri</a></td><td>SIL OFL 1.1</td><td>Display headings throughout the site</td></tr>
+        <tr><td>System UI sans-serif</td><td>&mdash;</td><td>Body text uses each platform's native UI font</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Transitive dependencies</h3>
+    <p>The packages above pull in roughly 200 transitive dependencies. All are under permissive licenses (MIT, ISC, BSD, Apache-2.0, BlueOak-1.0.0, WTFPL, or 0BSD). No GPL or AGPL licensed code is included in the dependency tree.</p>
+
+    <p class="gratitude">UmmahCast would not exist without these projects and their maintainers. Thank you for sharing your work openly.</p>
+
+    <div style="margin-top:2rem; text-align:center;">
+      <a href="/" class="btn-secondary" style="display:inline-flex;width:auto;padding:0.4rem 1rem;font-size:0.85rem;border-radius:var(--radius-pill);text-decoration:none;">&larr; Back to UmmahCast</a>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script src="/js/bottom-nav.js"></script>
+  <script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

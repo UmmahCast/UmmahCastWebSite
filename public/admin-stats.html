@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Admin Stats</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/tos-gate.js" defer></script>
+  <script src="/js/password-gate.js" defer></script>
+  <style>
+    .stats-page { max-width: 960px; width: 100%; }
+    .stats-page h2 { margin-bottom: 0.25rem; }
+    .stats-sub { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .tile .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tile .num { font-size: 1.75rem; font-weight: 700; color: var(--text); margin-top: 0.25rem; line-height: 1.1; }
+    .tile .sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .panel h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.75rem; }
+    .panel .help { font-size: 0.75rem; color: var(--text-muted); margin: 0 0 0.75rem; }
+
+    .gauge-row {
+      display: flex; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .gauge {
+      flex: 1; min-width: 140px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.6rem 0.85rem;
+    }
+    .gauge .name { font-size: 0.8rem; font-weight: 600; }
+    .gauge .bar { height: 6px; background: var(--border); border-radius: 999px; margin: 0.4rem 0 0.3rem; overflow: hidden; }
+    .gauge .bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s; }
+    .gauge.warn .bar-fill { background: #eab308; }
+    .gauge.danger .bar-fill { background: #ef4444; }
+    .gauge .meta { font-size: 0.7rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+
+    table.stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    table.stats-table th, table.stats-table td {
+      text-align: left; padding: 0.5rem 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    table.stats-table th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    table.stats-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    svg.chart { width: 100%; height: auto; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+    .auth-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #ef4444;
+      padding: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="stats-page">
+    <h2>📊 Admin Stats</h2>
+    <p class="stats-sub" id="stats-sub">Loading…</p>
+
+    <div id="auth-error" class="auth-error" style="display:none;">
+      Superadmin access required. <a href="/" style="color:inherit;">Go home</a>.
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <!-- Overview tiles -->
+      <div class="tile-grid" id="overview"></div>
+
+      <!-- Email -->
+      <div class="panel">
+        <h3>Email Delivery — Today</h3>
+        <p class="help">Per-provider quota usage. Failover kicks in at 100%.</p>
+        <div class="gauge-row" id="email-gauges"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Email Delivery — Last 30 days</h3>
+        <p class="help">Stacked daily totals across all configured SMTP providers.</p>
+        <div id="email-history-chart"></div>
+        <div class="legend" id="email-legend"></div>
+      </div>
+
+      <!-- Listeners -->
+      <div class="panel">
+        <h3>Listener Engagement — Last 30 days</h3>
+        <p class="help">Total listen-minutes per day across all rooms.</p>
+        <div id="listener-chart"></div>
+      </div>
+
+      <!-- Top rooms -->
+      <div class="panel">
+        <h3>Top Rooms — Last 30 days</h3>
+        <p class="help">By total listen-minutes.</p>
+        <div style="overflow-x:auto;">
+          <table class="stats-table" id="top-rooms-table">
+            <thead><tr><th>Room</th><th>Org</th><th class="num">Broadcasts</th><th class="num">Peak</th><th class="num">Minutes</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Site events (marketing) -->
+      <div class="panel">
+        <h3>Site Events — Last 7 days</h3>
+        <p class="help">Page views and CTA clicks across the marketing surface. Use to gauge TikTok / referral traffic conversion.</p>
+        <div style="overflow-x:auto;">
+          <table class="stats-table" id="site-events-table">
+            <thead><tr><th>Event</th><th class="num">Count</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recordings -->
+      <div class="panel">
+        <h3>Storage</h3>
+        <p class="help">Disk usage by org. Auto-cleanup is not yet wired — defer for v2.</p>
+        <div id="storage-summary" style="margin-bottom:0.75rem;"></div>
+        <div style="overflow-x:auto;">
+          <table class="stats-table" id="storage-table">
+            <thead><tr><th>Org</th><th class="num">Recordings</th><th class="num">Size</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script src="/js/admin-stats.js"></script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

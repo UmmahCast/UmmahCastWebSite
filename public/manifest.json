@@ -1,0 +1,33 @@
+{
+  "name": "UmmahCast — Mosque Live Audio",
+  "short_name": "UmmahCast",
+  "description": "Free live audio platform for mosques and Islamic communities. Hear your masjid live, anywhere.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f11",
+  "theme_color": "#2d8a4e",
+  "categories": ["lifestyle", "religion", "audio"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

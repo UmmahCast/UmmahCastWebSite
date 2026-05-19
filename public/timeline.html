@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Timeline</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .timeline-page { max-width: 640px; width: 100%; }
+    .timeline-page p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1.5rem; }
+    .timeline { position: relative; padding-left: 2rem; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .milestone {
+      position: relative;
+      margin-bottom: 2rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .milestone::before {
+      content: '';
+      position: absolute;
+      left: -1.65rem;
+      top: 1.25rem;
+      width: 12px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: 2px solid var(--bg);
+      z-index: 1;
+    }
+    .milestone.gold::before { background: var(--gold, #c9a84c); }
+    .milestone-date {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+    }
+    .milestone.gold .milestone-date { color: var(--gold, #c9a84c); }
+    .milestone h3 { font-size: 0.95rem; margin: 0 0 0.35rem; color: var(--text); }
+    .milestone p { font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.6; }
+    .milestone .tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+    .milestone .tag.infra { background: #6366f1; }
+    .milestone .tag.feature { background: var(--accent); }
+    .milestone .tag.community { background: var(--gold, #c9a84c); color: #1a1a1f; }
+  </style>
+</head>
+<body>
+  <main class="timeline-page">
+    <div class="muqarnas-accent" aria-hidden="true"></div>
+    <h2>Project Timeline</h2>
+    <p>From a proof-of-concept audio relay to a full community broadcasting platform. Here's how UmmahCast has grown.</p>
+
+    <div class="timeline">
+
+      <div class="milestone">
+        <div class="milestone-date">May 18, 2026</div>
+        <h3>Another Sweep Across the Edges</h3>
+        <p>A second pass of small, mostly-invisible hardening: kept dependencies fresh, gave the operational plumbing a bit more discipline, and resolved a handful of subtle behaviors that were too generous. Also: the empty page background now carries the same quiet muqarnas pattern as the rest of the site — gold in dark mode, sage in light.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">May 18, 2026</div>
+        <h3>A New Coat of Paint — and Then Some</h3>
+        <p>UmmahCast got a deliberate visual refresh. Headings now use Amiri, a classical Arabic-inflected serif that pulls the look toward mosque architecture rather than generic tech-startup. The palette shifted from cold slate to warm sandstone (light) and deep, earthen tones (dark). A subtle muqarnas-inspired pattern — echoing the layered vaulting found in mosque ceilings — runs quietly through hero sections and dividers. Corners are sharper and more intentional on big blocks. The goal: look like an Islamic platform that happens to be modern, not a modern platform with Islamic stickers.</p>
+        <span class="tag community">Design</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">May 4, 2026</div>
+        <h3>Tighter Security + Smarter Admin View</h3>
+        <p>Hardened how the platform compares room passwords on a quiet edge case, and gave the admin org list at-a-glance context so it's easier to see who leads which mosque, how active each one is, and how many broadcasters are on each team.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 28, 2026</div>
+        <h3>Onboarding New Mosques Works Again</h3>
+        <p>A leftover constraint from the platform's single-mosque days was quietly blocking new mosque creation. Fixed the underlying schema, restored a half-created mosque to working order, and replaced a misleading error message with one that actually points at the real cause when something goes wrong.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 24, 2026</div>
+        <h3>Quieter, Cleaner Plumbing</h3>
+        <p>A maintenance pass under the hood: tidied up navigation so the menu lives where you'd expect it, trimmed background work the platform was doing for features that aren't user-facing yet, and tightened up how the server responds to oddball requests. No new buttons — just a calmer machine.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Capacity-Aware Reconnect + Leaner Status Frames</h3>
+        <p>Polished how the platform handles full rooms: when a stream is at capacity, listener clients now back off intelligently and show a clear "Room at capacity" message instead of hammering the server. Also slimmed down the per-broadcast status frames so packed broadcasts stay snappy as we grow.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Terms of Service</h3>
+        <p>Published a proper Terms of Service covering content responsibility, copyright, DMCA procedures, and platform liability — and added an acceptance step for broadcasters and a checkbox on the mosque application form. Listeners aren't asked to accept anything; the streaming experience stays frictionless.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Mosques Can Upload Their Own Logo</h3>
+        <p>Org leaders can now upload a photo of their mosque (or any image they choose to represent the community) directly from settings — no more pasting URLs from elsewhere. Each upload is reviewed by a moderator before going live, so the community pages stay welcoming and on-brand.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Better Link Previews</h3>
+        <p>When someone shares a mosque or room link to WhatsApp, Telegram, or social media, the preview now shows the actual mosque name, description, and a "Live now" badge if a broadcast is in progress — instead of a generic site image. Sharing finally feels alive.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Privacy-Conscious Analytics</h3>
+        <p>Added a small in-house analytics panel to the admin dashboard tracking page views and CTA clicks across the site. No third-party trackers, no cookies, no user identifiers — just counters so we know what's resonating.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Polished Home-Screen Install</h3>
+        <p>Tightened up the PWA manifest so adding UmmahCast to your phone home screen now uses the proper logo, brand colors, and a smoother install experience on both iOS and Android.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Support UmmahCast</h3>
+        <p>Added a small "Support UmmahCast" button to the site footer for anyone who wants to chip in toward server costs and keep the platform free for every mosque. Tips are voluntary, never required to use anything on the site.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Hear It Before You Sign Up</h3>
+        <p>The homepage now opens with a sample player so visitors can immediately hear what UmmahCast sounds like — Surah Ar-Rahman recited by Sheikh AbdulBaset AbdulSamad in the classical Mujawwad style, played through the same player your community would use.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 23, 2026</div>
+        <h3>Chat Moderation + Kill-Switch</h3>
+        <p>Live chat now passes through a profanity and slur filter before reaching listeners. Broadcasters also get a one-tap "Disable chat" toggle on the broadcast page — useful when leading a khutbah or any moment where chat shouldn't compete for attention.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>One Less Decision Before Going Live</h3>
+        <p>Removed the audio-quality dropdown from the broadcast page. Every broadcast now goes out at a clean voice-tuned bitrate that sounds great and stays gentle on cellular connections — fewer settings to fiddle with before you start the khutbah.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>A Proper Hero for Each Mosque</h3>
+        <p>Each community page now opens with a real hero block — logo, name, and a status line that shows what's live now or counts down to the next scheduled broadcast. Feels like the community's home, not just a list.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>See Who's Tuned In</h3>
+        <p>Room cards now show small avatar bubbles for the first few named listeners alongside the listener count — gentle social proof that the room is alive. Anonymous listeners stay anonymous.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Resume Listening, Anywhere</h3>
+        <p>A small "Resume" pill now follows you across pages, offering a one-tap return to whichever room you last tuned into. Dismissible if you don't want it; vanishes on its own after a day.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Live Cards Feel Alive</h3>
+        <p>Cards for rooms and communities now show a tiny animated waveform next to the LIVE badge so it's obvious at a glance that audio is actually flowing. Respects reduced-motion preferences for anyone who's set that.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Friendlier Empty Pages</h3>
+        <p>Pages that used to show bare text like "No rooms yet" now have a proper empty-state block with a gentle icon and a sentence explaining what's happening — feels welcoming instead of broken.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Light Mode Polish</h3>
+        <p>Audited the settings page in light mode and fixed several spots where badges, banners, and form accents weren't adapting cleanly. Everything now uses theme tokens so dark and light look equally finished.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Welcome Card Fix</h3>
+        <p>Fixed a small bug where the first-visit welcome card wasn't appearing on the homepage for new visitors. Everyone now gets the proper introduction when they land on UmmahCast for the first time.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Replay the Welcome Tour</h3>
+        <p>Added a "Show Welcome" link in the menu so anyone can re-open the welcome card and pick a path (listen vs. broadcast) again later — handy for first-timers who skipped past it accidentally.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Broadcast Page Polish</h3>
+        <p>Fixed a small visual bug where the mic-test "Listening" indicator showed up on the broadcast page before the Test Microphone button was pressed.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Mosques Manage Their Own Teams</h3>
+        <p>Each community now has a designated leader who can invite teammates by email and manage who can broadcast — no more admin bottleneck. Listeners always see your mosque name; they never see who's broadcasting individually.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Email-Invite Onboarding</h3>
+        <p>New broadcasters set their own credentials through a secure email invite link instead of having a password handed to them. Cleaner experience, no awkward password sharing.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>2FA Required for Broadcasters</h3>
+        <p>Two-factor authentication is now required for all broadcaster accounts. New accounts have a setup window after first login, then it becomes mandatory. Standard authenticator apps work.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Two-Factor Authentication</h3>
+        <p>Broadcasters can now enable 2FA from their settings page using any standard authenticator app.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Mosques Can Apply Online</h3>
+        <p>Self-service signup form for new mosques. Submissions ping the admin via Telegram and a one-click approval sends the new community an invite link to set up their broadcaster account.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Admin Stats Dashboard</h3>
+        <p>Live admin dashboard with email delivery gauges, listener-engagement charts, top rooms, and storage breakdown. All built with vanilla SVG — no chart library bloat.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Share Recordings at a Specific Moment</h3>
+        <p>Pause a recording at the part of the khutbah someone needs to hear, hit Share, and the link they receive resumes from that exact second. Native share sheet on mobile.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Recording Player Overhaul</h3>
+        <p>New custom recording player with scrubbing, 0.75–2× speed control, ±15s skip, and resume-where-you-left-off. Lock-screen controls work via the Media Session API on mobile.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Recurring Schedules</h3>
+        <p>Set up "Every Friday at 1pm" once and let it run. Daily, weekly (any combination of days), and monthly recurrences supported, all timezone-aware so DST changes don't break Jumu'ah.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Live Audio Visualizer</h3>
+        <p>A 24-bar live spectrum on the listen page so you can see the stream is flowing — no more wondering if your speakers are muted. Respects reduced-motion preferences.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Pulsing Tab Title When Live</h3>
+        <p>If you switch tabs while a stream is live, the browser tab title pulses with "🔴 LIVE — Room Name" so you don't miss it. Stops the moment you switch back.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 22, 2026</div>
+        <h3>Mic Test for Broadcasters</h3>
+        <p>Broadcasters can verify their microphone is working before going live with a real-time level meter. Reuses the same mic stream for the actual broadcast — no double permission prompt.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 19, 2026</div>
+        <h3>Follow Specific Rooms</h3>
+        <p>One-click bell button on every room — subscribe to notifications for just the rooms you care about. Filled bell means following, outline means not. Email prompt only on first follow.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 19, 2026</div>
+        <h3>Email Preference Management</h3>
+        <p>Subscribers can now control everything from one page: instant vs daily digest, quiet hours with timezone awareness, per-room opt-in, and one-click unsubscribe with the option to resubscribe later.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 19, 2026</div>
+        <h3>Email Delivery Live</h3>
+        <p>Go-live email notifications are now being delivered to verified subscribers. Multiple delivery routes are configured with automatic failover for reliability.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 19, 2026</div>
+        <h3>Privacy Policy Update</h3>
+        <p>Disclosed how email subscriptions and CDN routing work, plus user rights to access, correct, or delete their data. Generic phrasing — third-party processors handle delivery without selling or sharing your data.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 19, 2026</div>
+        <h3>Broadcasts Stay Offline Until You Click Go Live</h3>
+        <p>Previously, just opening the broadcast page would mark a room as live and start recording. Now the room stays offline until the broadcaster explicitly clicks Go Live — no more accidental ghost broadcasts or empty recordings.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 18, 2026</div>
+        <h3>Email Notification System</h3>
+        <p>Chained SMTP email notifications with 8-provider failover. Listeners subscribe with double opt-in, get emailed when broadcasts go live. One-click unsubscribe in every email.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 18, 2026</div>
+        <h3>Hero Landing Page</h3>
+        <p>New community-focused home page with feature highlights, live communities list, and clear calls to action. Home and Listen are now separate destinations.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 18, 2026</div>
+        <h3>Community Feedback & Timeline</h3>
+        <p>Launched contact/feedback form so the community can shape UmmahCast's future. Bot-resistant with honeypot and timing checks. Added this timeline page to share our journey.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 17, 2026</div>
+        <h3>Mobile Navigation Overhaul</h3>
+        <p>Role-aware bottom tab bar for mobile. Broadcasters and listeners each see the tabs they need. "More" drawer for secondary links. iPhone safe area support.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 17, 2026</div>
+        <h3>Rich Share Previews</h3>
+        <p>Open Graph meta tags for beautiful link previews when sharing UmmahCast on WhatsApp, iMessage, and social media.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 16, 2026</div>
+        <h3>Skeleton Loading & Toast Notifications</h3>
+        <p>Smooth loading states with skeleton shimmer instead of blank screens. Non-intrusive toast notifications for user feedback.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 16, 2026</div>
+        <h3>First-Visit Onboarding</h3>
+        <p>Three-step onboarding overlay for new visitors explaining what UmmahCast is, how to listen, and how to get notified.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 15, 2026</div>
+        <h3>Custom Domain: ummahcast.com</h3>
+        <p>Moved from a dynamic DNS subdomain to our own domain with Cloudflare DNS and tunnel — zero open ports on the server.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 15, 2026</div>
+        <h3>Docker Containerization</h3>
+        <p>Full Docker deployment with resource limits, read-only filesystem, and automatic restarts. Production-ready container setup.</p>
+        <span class="tag infra">Infrastructure</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 14, 2026</div>
+        <h3>Multi-Organization Support</h3>
+        <p>Any mosque or organization can have its own space on UmmahCast — separate rooms, schedules, recordings, categories, and notifications. Org-scoped data isolation.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 14, 2026</div>
+        <h3>Admin Notifications</h3>
+        <p>Instant alerts when a stream goes live. Per-organization notification channels so each mosque can notify their own community.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 13, 2026</div>
+        <h3>Web Push Notifications</h3>
+        <p>Browser push notifications using VAPID keys. Listeners opt in and get notified the moment a broadcast starts — no app install needed.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 13, 2026</div>
+        <h3>PWA: Install to Home Screen</h3>
+        <p>Progressive Web App with service worker, manifest, and offline support. Install UmmahCast like a native app on any phone or desktop.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 12, 2026</div>
+        <h3>Live Reactions & Chat</h3>
+        <p>Real-time emoji reactions (dua, mosque, tasbih, crescent) and live chat alongside the audio stream. Community engagement during broadcasts.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 12, 2026</div>
+        <h3>Recording & Playback</h3>
+        <p>Automatic server-side recording of broadcasts. Broadcasters can publish recordings for on-demand listening by the community.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 12, 2026</div>
+        <h3>Schedule & Countdown</h3>
+        <p>Broadcasters set upcoming event schedules with countdown timers. Listeners always know when the next stream is happening.</p>
+        <span class="tag feature">Feature</span>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-date">April 12, 2026</div>
+        <h3>"Who's Listening" Panel</h3>
+        <p>See who's tuned in with display names. Builds a sense of community presence during live broadcasts.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+      <div class="milestone gold">
+        <div class="milestone-date">April 11, 2026</div>
+        <h3>UmmahCast is Born</h3>
+        <p>First working prototype: browser-based live audio streaming using WebSockets. MediaRecorder captures audio, Node.js relays it in real-time, MSE plays it back. No app needed, no plugins — just open the link and listen.</p>
+        <span class="tag community">Community</span>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>

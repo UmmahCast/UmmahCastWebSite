@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UmmahCast — Email Preferences</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=19">
+  <script src="/js/theme.js"></script>
+  <script src="/js/analytics.js" defer></script>
+  <style>
+    .prefs { max-width: 540px; width: 100%; }
+    .prefs h2 { margin-bottom: 0.5rem; }
+    .prefs .sub-hint { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+    .prefs-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .prefs-section h3 { font-size: 0.9rem; font-weight: 600; margin: 0 0 0.75rem; color: var(--text); }
+    .prefs-section .help { font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0; }
+    .radio-row, .check-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; cursor: pointer; }
+    .radio-row input, .check-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .radio-row label, .check-row label { font-size: 0.9rem; cursor: pointer; }
+    .radio-row label .desc { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .time-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
+    .time-row label { font-size: 0.85rem; color: var(--text-muted); }
+    .time-row input, .time-row select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.85rem; font-family: inherit; }
+    .save-bar { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; }
+    .status-msg { font-size: 0.85rem; }
+    .status-ok { color: var(--accent); }
+    .status-err { color: var(--danger, #ef4444); }
+    .danger-zone { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); }
+    .danger-zone h3 { color: #ef4444; }
+    .btn-danger-outline { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 0.5rem 1rem; border-radius: var(--radius-pill); font-size: 0.85rem; cursor: pointer; width: auto; min-height: auto; }
+    .btn-danger-outline:hover { background: rgba(239, 68, 68, 0.1); }
+    .unsub-banner { background: #ef4444; color: white; padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem; text-align: center; }
+    .unsub-banner button { background: white; color: #ef4444; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-pill); font-weight: 600; margin-top: 0.5rem; cursor: pointer; width: auto; min-height: auto; }
+  </style>
+</head>
+<body>
+  <main class="prefs">
+    <h2>Email Preferences</h2>
+    <p class="sub-hint" id="sub-hint">Loading…</p>
+
+    <div id="loading" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading your preferences…</div>
+
+    <div id="error" class="prefs-section" style="display:none; border-color:rgba(239,68,68,0.3);">
+      <h3 style="color:#ef4444;">Link Invalid</h3>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">This preferences link is invalid or has expired. Please subscribe again from the <a href="/notifications-guide" style="color:var(--accent);">notifications page</a>.</p>
+    </div>
+
+    <div id="form" style="display:none;">
+
+      <div id="unsub-banner" class="unsub-banner" style="display:none;">
+        <strong>You're currently unsubscribed.</strong>
+        <div style="font-size:0.85rem; margin-top:0.25rem;">You won't receive any email notifications.</div>
+        <button onclick="resubscribe()">Resubscribe</button>
+      </div>
+
+      <!-- Frequency -->
+      <div class="prefs-section">
+        <h3>How often?</h3>
+        <div class="radio-row">
+          <input type="radio" name="frequency" value="instant" id="freq-instant">
+          <label for="freq-instant"><strong>Instant</strong><span class="desc">Get an email the moment a broadcast starts</span></label>
+        </div>
+        <div class="radio-row">
+          <input type="radio" name="frequency" value="daily_digest" id="freq-digest">
+          <label for="freq-digest"><strong>Daily digest</strong><span class="desc">One summary email per day with what you missed</span></label>
+        </div>
+        <div class="radio-row">
+          <input type="radio" name="frequency" value="disabled" id="freq-off">
+          <label for="freq-off"><strong>Pause notifications</strong><span class="desc">Stay subscribed but don't email me</span></label>
+        </div>
+
+        <div class="time-row" id="digest-time-row" style="display:none;">
+          <label for="digest-hour">Digest delivered at:</label>
+          <select id="digest-hour"></select>
+          <span style="font-size:0.75rem; color:var(--text-muted);">(your local time)</span>
+        </div>
+      </div>
+
+      <!-- Quiet hours -->
+      <div class="prefs-section">
+        <h3>Quiet hours</h3>
+        <p class="help" style="margin-top:0;">Don't email me during these hours. Notifications get sent in the next digest instead.</p>
+        <div class="time-row">
+          <label>From</label>
+          <input type="time" id="quiet-start">
+          <label>To</label>
+          <input type="time" id="quiet-end">
+          <button type="button" class="btn-secondary" onclick="clearQuiet()" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Clear</button>
+        </div>
+      </div>
+
+      <!-- Timezone -->
+      <div class="prefs-section">
+        <h3>Timezone</h3>
+        <div class="time-row">
+          <label for="tz">Your timezone:</label>
+          <input type="text" id="tz" style="flex:1; min-width:200px;" placeholder="e.g. America/New_York">
+          <button type="button" class="btn-secondary" onclick="autoTimezone()" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Auto-detect</button>
+        </div>
+        <p class="help">Used for digest timing and quiet hours.</p>
+      </div>
+
+      <!-- Rooms -->
+      <div class="prefs-section">
+        <h3>Which rooms?</h3>
+        <p class="help" style="margin-top:0;">Only get notifications for the rooms you check below. New rooms added later won't auto-subscribe — visit this page to opt in.</p>
+        <div id="rooms-list" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <div class="save-bar">
+        <button class="btn-primary" id="save-btn" onclick="savePrefs()" style="width:auto; padding:0.5rem 1.5rem; font-size:0.9rem;">Save Preferences</button>
+        <span class="status-msg" id="status-msg"></span>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="prefs-section danger-zone" style="margin-top:2rem;">
+        <h3>Unsubscribe</h3>
+        <p class="help" style="margin-top:0; margin-bottom:0.75rem;">Stop all email notifications from this organization. You can resubscribe anytime from this page.</p>
+        <button class="btn-danger-outline" onclick="unsubscribe()">Unsubscribe from all emails</button>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/card-shimmer.js?v=1" defer></script>
+  <script>renderNav('info');</script>
+  <script>
+    const token = window.location.pathname.split('/').pop();
+    let prefs = null;
+
+    async function load() {
+      try {
+        const res = await fetch('/api/preferences/' + token);
+        if (!res.ok) throw new Error();
+        prefs = await res.json();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('form').style.display = 'block';
+        document.getElementById('sub-hint').textContent = `${prefs.email} · subscribed to ${prefs.orgName}`;
+
+        // Persist token in localStorage so bell buttons + nav link work for this user
+        try { localStorage.setItem('uc.token.' + prefs.orgSlug, token); } catch {}
+
+        // Welcome banner if just verified
+        if (new URLSearchParams(window.location.search).get('verified') === '1') {
+          const banner = document.createElement('div');
+          banner.style.cssText = 'background:var(--accent);color:white;padding:1rem 1.25rem;border-radius:var(--radius);margin-bottom:1rem;text-align:center;';
+          banner.innerHTML = '<strong>Email verified!</strong><div style="font-size:0.85rem;margin-top:0.25rem;">Customize your notification preferences below — you can come back anytime.</div>';
+          document.getElementById('form').prepend(banner);
+        }
+        renderForm();
+      } catch {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function renderForm() {
+      // Unsubscribed banner
+      document.getElementById('unsub-banner').style.display = prefs.unsubscribed ? 'block' : 'none';
+
+      // Frequency
+      document.querySelector(`input[name="frequency"][value="${prefs.frequency}"]`).checked = true;
+      toggleDigestRow();
+      document.querySelectorAll('input[name="frequency"]').forEach(r => r.addEventListener('change', toggleDigestRow));
+
+      // Digest hour dropdown
+      const sel = document.getElementById('digest-hour');
+      sel.innerHTML = '';
+      for (let h = 0; h < 24; h++) {
+        const label = h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`;
+        const opt = document.createElement('option');
+        opt.value = h; opt.textContent = label;
+        if (h === prefs.digestHour) opt.selected = true;
+        sel.appendChild(opt);
+      }
+
+      // Quiet hours
+      document.getElementById('quiet-start').value = prefs.quietStart || '';
+      document.getElementById('quiet-end').value = prefs.quietEnd || '';
+
+      // Timezone
+      document.getElementById('tz').value = prefs.timezone || 'UTC';
+
+      // Rooms
+      const list = document.getElementById('rooms-list');
+      list.innerHTML = '';
+      if (prefs.rooms.length === 0) {
+        list.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted);">No rooms in this organization yet.</div>';
+      } else {
+        prefs.rooms.forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'check-row';
+          const id = 'room-' + r.slug;
+          row.innerHTML = `<input type="checkbox" id="${id}" data-slug="${esc(r.slug)}" ${r.subscribed ? 'checked' : ''}>
+                           <label for="${id}">${esc(r.name)}</label>`;
+          list.appendChild(row);
+        });
+      }
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function toggleDigestRow() {
+      const freq = document.querySelector('input[name="frequency"]:checked').value;
+      document.getElementById('digest-time-row').style.display = freq === 'daily_digest' ? 'flex' : 'none';
+    }
+
+    function clearQuiet() {
+      document.getElementById('quiet-start').value = '';
+      document.getElementById('quiet-end').value = '';
+    }
+
+    function autoTimezone() {
+      try { document.getElementById('tz').value = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch {}
+    }
+
+    async function savePrefs() {
+      const btn = document.getElementById('save-btn');
+      const msg = document.getElementById('status-msg');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      msg.textContent = '';
+
+      const subscribedRooms = Array.from(document.querySelectorAll('#rooms-list input[type=checkbox]:checked'))
+        .map(c => c.dataset.slug);
+
+      const body = {
+        frequency: document.querySelector('input[name="frequency"]:checked').value,
+        quietStart: document.getElementById('quiet-start').value,
+        quietEnd: document.getElementById('quiet-end').value,
+        timezone: document.getElementById('tz').value.trim() || 'UTC',
+        digestHour: parseInt(document.getElementById('digest-hour').value, 10),
+        subscribedRooms,
+      };
+
+      try {
+        const res = await fetch('/api/preferences/' + token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          msg.textContent = 'Saved!';
+          msg.className = 'status-msg status-ok';
+        } else {
+          const data = await res.json();
+          msg.textContent = data.error || 'Failed to save';
+          msg.className = 'status-msg status-err';
+        }
+      } catch {
+        msg.textContent = 'Network error';
+        msg.className = 'status-msg status-err';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Preferences';
+      setTimeout(() => { if (msg.classList.contains('status-ok')) msg.textContent = ''; }, 3000);
+    }
+
+    async function unsubscribe() {
+      if (!confirm('Are you sure? You will stop receiving all email notifications from this organization.')) return;
+      const res = await fetch('/api/email/unsubscribe/' + token);
+      if (res.ok) { prefs.unsubscribed = true; renderForm(); }
+    }
+
+    async function resubscribe() {
+      const res = await fetch('/api/preferences/' + token + '/resubscribe', { method: 'POST' });
+      if (res.ok) { prefs.unsubscribed = false; renderForm(); }
+    }
+
+    load();
+  </script>
+  <script src="/js/bottom-nav.js"></script>
+<script src="/js/footer.js"></script>
+  <script src="/js/resume-pill.js"></script>
+</body>
+</html>
