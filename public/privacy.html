@@ -20,7 +20,7 @@
   <main class="legal">
     <div class="muqarnas-accent" aria-hidden="true"></div>
     <h2>Privacy Policy</h2>
-    <p style="font-size:0.8rem; color:var(--text-muted);">Last updated: May 18, 2026</p>
+    <p style="font-size:0.8rem; color:var(--text-muted);">Last updated: May 19, 2026</p>
 
     <h3>What is UmmahCast?</h3>
     <p>UmmahCast is a self-hosted live audio streaming platform for mosque communities. It is operated independently and is not affiliated with any third-party service.</p>
@@ -80,11 +80,12 @@
     <h3>Audio Streaming</h3>
     <p>Live audio is transmitted via WebSocket connections. Connection metadata (IP address, user agent) is used only for routing and is not stored beyond what is needed to operate the service. Broadcasts may be recorded by the broadcaster — published recordings are accessible to all listeners in that room.</p>
 
-    <h3>Network Delivery (CDN)</h3>
-    <p>Traffic to and from this site is routed through a third-party content-delivery network (CDN) to provide HTTPS encryption, caching, and protection against abuse. The CDN provider necessarily processes connection metadata such as your IP address, request headers, and timestamps to perform this routing and security function. Visit your browser's settings or use a VPN if you wish to limit what the CDN provider can see about your connection.</p>
+    <h3>Network Delivery (Cloudflare)</h3>
+    <p>Traffic to and from this site is routed through <a href="https://www.cloudflare.com">Cloudflare</a>, a third-party content-delivery network, to provide HTTPS encryption, caching, abuse protection, and to keep the platform reachable without exposing the origin server's IP address. Cloudflare necessarily processes connection metadata such as your IP address, request headers, TLS handshake details, and timestamps to perform this routing and security function. Cloudflare's handling of this data is governed by their own <a href="https://www.cloudflare.com/privacypolicy/">Privacy Policy</a>.</p>
+    <p>We have <strong>not</strong> enabled Cloudflare's optional analytics or behavioral-fingerprinting products on this site &mdash; the integration is limited to network routing and security. If you wish to limit what Cloudflare can see about your connection, use a VPN or your browser's built-in privacy controls.</p>
 
     <h3>Data Sharing</h3>
-    <p>We do not sell or rent your data. We share data only with service providers strictly necessary to operate this site (email delivery, push notification delivery via the standards-required Apple/Google infrastructure, optional Telegram channels configured by Organizations, and the CDN described above), and only the minimum information they need to perform that service. We do not provide your data to advertisers, marketers, or unrelated third parties.</p>
+    <p>We do not sell or rent your data. We share data only with service providers strictly necessary to operate this site (email delivery, push notification delivery via the standards-required Apple/Google infrastructure, optional Telegram channels configured by Organizations, and Cloudflare for network delivery described above), and only the minimum information they need to perform that service. We do not provide your data to advertisers, marketers, or unrelated third parties.</p>
 
     <h3>Data Retention & Deletion</h3>
     <ul>
