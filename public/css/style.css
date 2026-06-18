@@ -167,31 +167,8 @@
   background-color: var(--pattern-color);
 }
 
-/* Card corner ornament — subtle bottom-right mark.
-   Uses ::before because ::after is claimed by the border-sweep effect on cards. */
-.muqarnas-corner {
-  position: relative;
-}
-.muqarnas-corner::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 48px;
-  height: 36px;
-  pointer-events: none;
-  z-index: 0;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: 64px 48px;
-          mask-repeat: no-repeat;
-          mask-size: 64px 48px;
-  -webkit-mask-position: bottom right;
-          mask-position: bottom right;
-  background-color: var(--pattern-color);
-  opacity: 0.55;
-}
+/* (Removed .muqarnas-corner card ornament — a clipped pattern fragment that
+   read as a stray squiggle. Cards sit on the patterned body background already.) */
 
 /* Smooth theme transitions */
 html { color-scheme: dark light; }
