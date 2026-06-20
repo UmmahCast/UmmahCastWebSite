@@ -46,7 +46,7 @@ const _createOrgTx = db.transaction((slug, name) => {
 });
 function createOrg(slug, name) { return _createOrgTx(slug, name); }
 
-const ALLOWED_ORG_COLS = { name: 'name', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', telegram_chat_id: 'telegram_chat_id' };
+const ALLOWED_ORG_COLS = { name: 'name', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', telegram_chat_id: 'telegram_chat_id', captions_enabled: 'captions_enabled' };
 const ALLOWED_ROOM_COLS = { name: 'name', password: 'password', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', chat_disabled: 'chat_disabled' };
 
 function updateOrg(slug, updates) {
@@ -519,10 +519,59 @@ function deleteRecording(id, orgId, isSuperadmin) {
 }
 
 function getRecordings(roomSlug, orgId, includeUnpublished) {
+  const base = `
+    SELECT r.*, t.status AS transcript_status
+    FROM recordings r
+    LEFT JOIN transcripts t ON t.recording_id = r.id AND t.lang = 'en'
+    WHERE r.room_slug = ? AND r.org_id = ? `;
   if (includeUnpublished) {
-    return db.prepare('SELECT * FROM recordings WHERE room_slug = ? AND org_id = ? ORDER BY recorded_at DESC').all(roomSlug, orgId);
+    return db.prepare(base + 'ORDER BY r.recorded_at DESC').all(roomSlug, orgId);
   }
-  return db.prepare('SELECT * FROM recordings WHERE room_slug = ? AND org_id = ? AND published = 1 ORDER BY recorded_at DESC').all(roomSlug, orgId);
+  return db.prepare(base + 'AND r.published = 1 ORDER BY r.recorded_at DESC').all(roomSlug, orgId);
+}
+
+function getRecording(id) {
+  return db.prepare('SELECT * FROM recordings WHERE id = ?').get(id);
+}
+
+// --- Transcripts (English captions for published recordings) ---
+
+// Mark a recording as queued for transcription. Idempotent via UNIQUE(recording_id, lang):
+// a re-dispatch resets an existing row to 'pending'.
+function markTranscriptPending(recordingId, orgId, roomSlug, lang = 'en') {
+  db.prepare(`
+    INSERT INTO transcripts (recording_id, org_id, room_slug, lang, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+    ON CONFLICT(recording_id, lang) DO UPDATE SET
+      status = 'pending', org_id = excluded.org_id, room_slug = excluded.room_slug,
+      updated_at = datetime('now')
+  `).run(recordingId, orgId || null, roomSlug || null, lang);
+}
+
+// Store the sidecar's result. segments is an array; stored as JSON text.
+function saveTranscript(recordingId, lang, status, fullText, segments) {
+  db.prepare(`
+    INSERT INTO transcripts (recording_id, lang, status, full_text, segments, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    ON CONFLICT(recording_id, lang) DO UPDATE SET
+      status = excluded.status, full_text = excluded.full_text,
+      segments = excluded.segments, updated_at = datetime('now')
+  `).run(recordingId, lang || 'en', status, fullText ?? null,
+         segments ? JSON.stringify(segments) : null);
+}
+
+function getTranscript(recordingId, lang = 'en') {
+  return db.prepare('SELECT * FROM transcripts WHERE recording_id = ? AND lang = ?').get(recordingId, lang);
+}
+
+// Fail transcripts stuck in 'pending' longer than maxMinutes (e.g. sidecar died
+// mid-job). Returns the number reaped.
+function reapStaleTranscripts(maxMinutes = 60) {
+  const r = db.prepare(`
+    UPDATE transcripts SET status = 'failed', updated_at = datetime('now')
+    WHERE status = 'pending' AND created_at < datetime('now', ?)
+  `).run(`-${maxMinutes} minutes`);
+  return r.changes;
 }
 
 // Categories
@@ -616,7 +665,8 @@ module.exports = {
   getRoomState, listRooms, getRoom, createRoom, updateRoom, deleteRoom,
   broadcastToRoom, statusPayload, listenerNamesFor,
   addSchedule, getSchedules, deleteSchedule,
-  addRecording, getRecordings, publishRecording, unpublishRecording, updateRecordingTitle, deleteRecording,
+  addRecording, getRecordings, getRecording, publishRecording, unpublishRecording, updateRecordingTitle, deleteRecording,
+  markTranscriptPending, saveTranscript, getTranscript, reapStaleTranscripts,
   getCategories, addCategory, deleteCategory,
   logAnalytics, getAnalyticsSummary,
   listOrgs, getOrg, getOrgById, createOrg, updateOrg, deleteOrg,

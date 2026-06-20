@@ -494,6 +494,12 @@
           </div>
         </div>
         <div class="field">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+            <input type="checkbox" id="brand-captions-${esc(o.slug)}" ${o.captionsEnabled ? 'checked' : ''} onchange="saveOrgBrand('${esc(o.slug)}','captionsEnabled')" style="width:auto;cursor:pointer;">
+            <span>Caption published recordings (auto English transcript)</span>
+          </label>
+        </div>
+        <div class="field">
           <label>Upload logo (queues for review on /admin/photos)</label>
           <input type="file" accept="image/png,image/jpeg,image/webp" id="brand-logo-${esc(o.slug)}" style="font-size:0.8rem;">
           <button class="btn-stop inline-btn" onclick="uploadOrgLogo('${esc(o.slug)}')" style="margin-top:0.35rem;">📷 Upload logo</button>
@@ -517,6 +523,7 @@
       if (field === 'accentColor') payload.accentColor = document.getElementById(`brand-accent-${slug}`).value;
       else if (field === 'description') payload.description = document.getElementById(`brand-desc-${slug}`).value;
       else if (field === 'telegramChatId') payload.telegramChatId = document.getElementById(`brand-tg-${slug}`).value.trim();
+      else if (field === 'captionsEnabled') payload.captionsEnabled = document.getElementById(`brand-captions-${slug}`).checked;
       const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

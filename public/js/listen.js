@@ -154,6 +154,7 @@ const _inRecordingMode = Number.isInteger(recordingIdParam) && recordingIdParam 
           title: titleLabel,
           durationSeconds: r.duration_seconds,
           roomSlug: room,
+          transcriptStatus: r.transcript_status || 'none',
         });
         list.appendChild(player);
       } else {

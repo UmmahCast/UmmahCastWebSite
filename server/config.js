@@ -26,6 +26,17 @@ module.exports = {
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '',
   SUPERADMIN_USERNAME: process.env.SUPERADMIN_USERNAME || 'superadmin',
 
+  // Recording transcription (whisper sidecar). Off unless WHISPER_ENABLED=1, at
+  // which point the shared secret becomes mandatory in prod (fatals if missing).
+  WHISPER_ENABLED: process.env.WHISPER_ENABLED === '1',
+  WHISPER_URL: process.env.WHISPER_URL || 'http://whisper:8000',
+  WHISPER_SHARED_SECRET: process.env.WHISPER_ENABLED === '1'
+    ? requireEnv('WHISPER_SHARED_SECRET')
+    : (process.env.WHISPER_SHARED_SECRET || ''),
+  // Internal-only HTTP listener for the sidecar callback. Not published and not
+  // in the cloudflared ingress, so it is unreachable through the public tunnel.
+  INTERNAL_PORT: parseInt(process.env.INTERNAL_PORT || '3001', 10),
+
   // Email — SMTP chain (up to 8 providers, failover order)
   SMTP_FROM: process.env.SMTP_FROM || 'notifications@ummahcast.com',
   SMTP_PROVIDERS: (() => {

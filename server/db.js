@@ -186,6 +186,26 @@ try { db.exec("ALTER TABLE schedules ADD COLUMN recurrence_until TEXT"); } catch
 try { db.exec("ALTER TABLE schedules ADD COLUMN timezone TEXT DEFAULT 'UTC'"); } catch {}
 try { db.exec('ALTER TABLE analytics ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
 try { db.exec('ALTER TABLE recordings ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
+
+// --- Recording transcripts (English captions for published recordings) ---
+try { db.exec(`
+  CREATE TABLE IF NOT EXISTS transcripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+    org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+    room_slug TEXT,
+    lang TEXT DEFAULT 'en',
+    status TEXT DEFAULT 'pending',
+    full_text TEXT,
+    segments TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(recording_id, lang)
+  );
+`); } catch {}
+
+// Per-org opt-in for auto-transcribing published recordings.
+try { db.exec('ALTER TABLE organizations ADD COLUMN captions_enabled INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN telegram_chat_id TEXT'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN pending_deletion_at TEXT'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN archive_token TEXT'); } catch {}
