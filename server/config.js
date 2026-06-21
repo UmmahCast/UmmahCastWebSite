@@ -33,8 +33,9 @@ module.exports = {
   WHISPER_SHARED_SECRET: process.env.WHISPER_ENABLED === '1'
     ? requireEnv('WHISPER_SHARED_SECRET')
     : (process.env.WHISPER_SHARED_SECRET || ''),
-  // Internal-only HTTP listener for the sidecar callback. Not published and not
-  // in the cloudflared ingress, so it is unreachable through the public tunnel.
+  // HTTP listener for the sidecar callback. Not published to the host and not in the
+  // cloudflared ingress, so it's unreachable through the public tunnel; the shared secret
+  // (constant-time checked) is the actual access control for same-Docker-network peers.
   INTERNAL_PORT: parseInt(process.env.INTERNAL_PORT || '3001', 10),
 
   // Email — SMTP chain (up to 8 providers, failover order)

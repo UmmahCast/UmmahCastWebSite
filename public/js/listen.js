@@ -76,15 +76,24 @@ let roomPassword = '';
 // Skip live setup if we're in recording-share mode
 const _inRecordingMode = Number.isInteger(recordingIdParam) && recordingIdParam > 0;
 
+// Resolved once we've determined whether the room is password-protected, so auto-resume
+// can wait for the real signal instead of guessing a fixed delay.
+let _resolvePreload;
+const preloadReady = new Promise((r) => { _resolvePreload = r; });
+let _roomHasPassword = null; // null = not yet known
+
 // Pre-load room info
 (async () => {
-  if (_inRecordingMode) return;
-  const rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json();
-  const info = rooms.find(r => r.slug === room);
+  if (_inRecordingMode) { _resolvePreload(); return; }
+  let rooms = [];
+  try { rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json(); } catch {}
+  const info = Array.isArray(rooms) ? rooms.find(r => r.slug === room) : null;
   if (info) {
     document.getElementById('room-title-prompt').textContent = info.name;
+    _roomHasPassword = !!info.hasPassword;
     if (info.hasPassword) document.getElementById('password-section').classList.remove('hidden');
   }
+  _resolvePreload(); // password state determined (or attempted) — unblock auto-resume
 
   // Load schedule
   const scheds = await (await fetch(`/api/orgs/${orgSlug}/rooms/${room}/schedule`)).json();
@@ -171,6 +180,14 @@ const savedName = localStorage.getItem('uc_name');
 if (savedName) document.getElementById('name-input').value = savedName;
 
 function joinRoom() {
+  // Never connect blank to a password-protected room (the WS join would just be rejected and
+  // loop). If the password field is shown but empty, focus it and bail.
+  const _pwSection = document.getElementById('password-section');
+  const _pwInput = document.getElementById('password-input');
+  if (_pwSection && !_pwSection.classList.contains('hidden') && !(_pwInput && _pwInput.value)) {
+    if (_pwInput) _pwInput.focus();
+    return;
+  }
   displayName = document.getElementById('name-input').value.trim() || 'Anonymous';
   roomPassword = document.getElementById('password-input')?.value || '';
   localStorage.setItem('uc_name', displayName);
@@ -195,19 +212,19 @@ function joinRoom() {
 // Auto-resume from the cross-page pill: if ?autoresume=1 and we have a saved
 // name AND the room isn't password-protected (we have no stored password),
 // click Join automatically. Password rooms still require manual entry.
-(function maybeAutoResume() {
+(async function maybeAutoResume() {
   if (_inRecordingMode) return;
   if (params.get('autoresume') !== '1') return;
   if (!localStorage.getItem('uc_name')) return;
-  // Wait until pre-load determines whether the room has a password.
-  // The pre-load IIFE above un-hides #password-section if needed.
-  setTimeout(() => {
-    const pwSection = document.getElementById('password-section');
-    if (pwSection && !pwSection.classList.contains('hidden')) return;
-    const joinBtn = document.getElementById('join-btn') || document.querySelector('[onclick="joinRoom()"]');
-    if (joinBtn) joinBtn.click();
-    else joinRoom();
-  }, 300);
+  // Wait for the actual pre-load to determine password state (no fixed-delay guess), and only
+  // auto-join when we POSITIVELY know the room is not password-protected — fail safe otherwise.
+  await preloadReady;
+  if (_roomHasPassword !== false) return;
+  const pwSection = document.getElementById('password-section');
+  if (pwSection && !pwSection.classList.contains('hidden')) return;
+  const joinBtn = document.getElementById('join-btn') || document.querySelector('[onclick="joinRoom()"]');
+  if (joinBtn) joinBtn.click();
+  else joinRoom();
 })();
 
 const dot = document.getElementById('dot');

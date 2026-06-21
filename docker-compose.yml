@@ -98,9 +98,18 @@ services:
 
   # Transcription sidecar. Builds faster-whisper with the model baked in.
   # Lives ONLY on the internal (egress-less) network; reads recordings read-only.
+  # Opt-in: only built/started when the "whisper" compose profile is active. Set
+  # COMPOSE_PROFILES=whisper (in .env) alongside WHISPER_ENABLED=1 to run it; a plain
+  # `docker compose up` without the profile skips this sidecar entirely.
   whisper:
-    build: ./whisper
+    build:
+      context: ./whisper
+      # Pass the model through to the build so the baked model matches the runtime model
+      # (WHISPER_MODEL also feeds app.py at runtime; HF Hub is offline in the image).
+      args:
+        WHISPER_MODEL: ${WHISPER_MODEL:-medium}
     container_name: ummahcast-whisper
+    profiles: ["whisper"]
     restart: unless-stopped
     logging:
       driver: json-file

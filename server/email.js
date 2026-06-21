@@ -52,6 +52,25 @@ function incrementSent(provider) {
     ON CONFLICT(provider, date) DO UPDATE SET sent = sent + 1
   `).run(provider, todayUTC());
 }
+// Atomically reserve one send slot for today BEFORE sending; returns the new count, or null
+// if that would exceed the limit (in which case the reservation is rolled back). better-sqlite3
+// is synchronous, so this read-modify-write is indivisible vs other in-process senders — no two
+// concurrent sends can both grab the last slot (the check-then-increment race).
+function reserveSlot(provider, limit) {
+  const row = db.prepare(`
+    INSERT INTO smtp_daily_counters (provider, date, sent) VALUES (?, ?, 1)
+    ON CONFLICT(provider, date) DO UPDATE SET sent = sent + 1
+    RETURNING sent
+  `).get(provider, todayUTC());
+  if (limit && row.sent > limit) {
+    db.prepare('UPDATE smtp_daily_counters SET sent = sent - 1 WHERE provider = ? AND date = ?').run(provider, todayUTC());
+    return null;
+  }
+  return row.sent;
+}
+function releaseSlot(provider) {
+  db.prepare('UPDATE smtp_daily_counters SET sent = sent - 1 WHERE provider = ? AND date = ?').run(provider, todayUTC());
+}
 
 // Public: get today's send counts for admin/visibility
 function getDailyStats() {
@@ -70,28 +89,28 @@ async function sendEmail(to, subject, html, text) {
   if (transports.length === 0) return { ok: false, error: 'No SMTP providers configured' };
 
   for (const t of transports) {
-    // Proactive skip if we know this provider is exhausted today
+    // Atomically reserve a slot up front so a concurrent burst can't overshoot the provider's
+    // daily cap (which, for free transactional tiers, gets the account throttled/suspended).
+    let reserved = null;
     if (t.dailyLimit) {
-      const sent = getSent(t.name);
-      if (sent >= t.dailyLimit) {
-        // Skip silently, but log occasionally
-        continue;
-      }
+      reserved = reserveSlot(t.name, t.dailyLimit);
+      if (reserved === null) continue; // genuinely exhausted today — try the next provider
     }
     try {
       const info = await t.transport.sendMail({ from: SMTP_FROM, to, subject, html, text });
-      incrementSent(t.name);
-      const sent = getSent(t.name);
+      if (reserved === null) incrementSent(t.name); // no-limit provider: still count for stats
+      const sent = reserved ?? getSent(t.name);
       const limitStr = t.dailyLimit ? ` [${sent}/${t.dailyLimit}]` : '';
       console.log(`[email] Sent via ${t.name} to ${to} (${info.messageId})${limitStr}`);
       // Alert at 90% threshold (once per day per provider)
       if (t.dailyLimit && sent >= Math.floor(t.dailyLimit * 0.9) && sent < t.dailyLimit) {
         alertOncePerDay(`smtp-90-${t.name}`, () => {
-          notifyAdmin(`SMTP provider *${t.name}* at ${sent}/${t.dailyLimit} (${Math.round(sent/t.dailyLimit*100)}%) — failover will kick in soon.`, 'warn');
+          notifyAdmin(`SMTP provider ${t.name} at ${sent}/${t.dailyLimit} (${Math.round(sent/t.dailyLimit*100)}%) — failover will kick in soon.`, 'warn');
         });
       }
       return { ok: true, provider: t.name, messageId: info.messageId };
     } catch (err) {
+      if (reserved !== null) releaseSlot(t.name); // send failed — give the reserved slot back
       console.warn(`[email] ${t.name} failed for ${to}: ${err.message}`);
     }
   }

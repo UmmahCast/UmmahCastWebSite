@@ -127,6 +127,8 @@ try { db.exec('ALTER TABLE broadcasters ADD COLUMN is_superadmin INTEGER DEFAULT
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_secret TEXT'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_enabled INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_backup_codes TEXT'); } catch {}
+// Last TOTP time-step accepted at login — blocks replay of a code within its validity window.
+try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_last_step INTEGER'); } catch {}
 try { db.exec("ALTER TABLE broadcasters ADD COLUMN account_type TEXT DEFAULT 'individual'"); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN is_org_leader INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN must_change_password INTEGER DEFAULT 0'); } catch {}

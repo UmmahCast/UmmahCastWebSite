@@ -235,7 +235,17 @@ function setTotpEnabled(broadcasterId, secret, backupCodesHashed) {
 }
 
 function setTotpDisabled(broadcasterId) {
-  db.prepare('UPDATE broadcasters SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL WHERE id = ?').run(broadcasterId);
+  db.prepare('UPDATE broadcasters SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL, totp_last_step = NULL WHERE id = ?').run(broadcasterId);
+}
+
+// Atomically record the TOTP time-step just accepted. Returns true only if this step is
+// newer than the last one recorded — so a code can't be replayed within its ~90s window
+// (RFC 6238 §5.2). The single conditional UPDATE is race-safe against concurrent submits.
+function claimTotpStep(broadcasterId, step) {
+  const r = db.prepare(
+    'UPDATE broadcasters SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)'
+  ).run(step, broadcasterId, step);
+  return r.changes === 1;
 }
 
 function consumeBackupCode(broadcasterId, plainCode) {
@@ -385,7 +395,7 @@ module.exports = {
   createBroadcaster, loginBroadcaster, broadcasterMiddleware, authenticateWs,
   changePassword, updateDisplayName, deleteSession, parseCookie, getSession,
   loginBroadcasterStage1, consumePendingTotpLogin, getBroadcaster,
-  setTotpEnabled, setTotpDisabled, consumeBackupCode, createSession,
+  setTotpEnabled, setTotpDisabled, claimTotpStep, consumeBackupCode, createSession,
   hashPassword, verifyPassword,
   createIndividualBroadcaster, getBroadcastersByOrg,
   transferOrgLeadership, forceSetOrgLeader, deleteBroadcaster,
