@@ -70,6 +70,10 @@ const _deleteOrgRowsTx = db.transaction((orgId) => {
   db.prepare('DELETE FROM event_categories WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM push_subscriptions WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM email_subscribers WHERE org_id = ?').run(orgId);
+  // broadcaster_invites has a NOT NULL FK to organizations(id) AND an invited_by FK to
+  // broadcasters(id), so it must be cleared before broadcasters/organizations or the
+  // whole delete fails for any org that still has a pending/old invite.
+  db.prepare('DELETE FROM broadcaster_invites WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM rooms WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM broadcasters WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM organizations WHERE id = ?').run(orgId);
