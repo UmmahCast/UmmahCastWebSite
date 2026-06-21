@@ -64,6 +64,10 @@ function updateOrg(slug, updates) {
 
 // Atomic — all related rows go together or not at all.
 const _deleteOrgRowsTx = db.transaction((orgId) => {
+  // Clear the org's self-reference to a broadcaster (pending logo uploader) first —
+  // pending_logo_uploaded_by REFERENCES broadcasters(id) with NO ACTION, so a live
+  // reference would throw FOREIGN KEY constraint when we delete broadcasters below.
+  db.prepare('UPDATE organizations SET pending_logo_url = NULL, pending_logo_uploaded_at = NULL, pending_logo_uploaded_by = NULL WHERE id = ?').run(orgId);
   db.prepare('DELETE FROM schedules WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM recordings WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM analytics WHERE org_id = ?').run(orgId);
@@ -74,6 +78,9 @@ const _deleteOrgRowsTx = db.transaction((orgId) => {
   // broadcasters(id), so it must be cleared before broadcasters/organizations or the
   // whole delete fails for any org that still has a pending/old invite.
   db.prepare('DELETE FROM broadcaster_invites WHERE org_id = ?').run(orgId);
+  // sessions.broadcaster_id is NOT NULL REFERENCES broadcasters(id) with no cascade, so
+  // any logged-in broadcaster's session row must be cleared before deleting broadcasters.
+  db.prepare('DELETE FROM sessions WHERE broadcaster_id IN (SELECT id FROM broadcasters WHERE org_id = ?)').run(orgId);
   db.prepare('DELETE FROM rooms WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM broadcasters WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM organizations WHERE id = ?').run(orgId);
@@ -319,6 +326,11 @@ function deleteRoom(slug, orgId) {
   db.prepare('DELETE FROM schedules WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
   db.prepare('DELETE FROM recordings WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
   db.prepare('DELETE FROM analytics WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+  // Clear per-room email opt-ins + queued digest items for this room (org-scoped via the
+  // subscriber, since these tables key room_slug as free text with no FK to rooms). Prevents
+  // stale opt-ins silently re-attaching if the slug is later reused in the same org.
+  try { db.prepare('DELETE FROM email_subscriber_rooms WHERE room_slug = ? AND subscriber_id IN (SELECT id FROM email_subscribers WHERE org_id = ?)').run(slug, orgId); } catch {}
+  try { db.prepare('DELETE FROM email_digest_queue WHERE room_slug = ? AND org_id = ?').run(slug, orgId); } catch {}
   db.prepare('DELETE FROM rooms WHERE slug = ? AND org_id = ?').run(slug, orgId);
   const key = roomKey(orgId, slug);
   if (liveRooms.has(key)) liveRooms.delete(key);

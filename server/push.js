@@ -30,6 +30,8 @@ async function notifyLive(roomName, broadcasterName, orgId) {
   });
 
   const stale = [];
+  let failed = 0;
+  const errSamples = [];
   await Promise.allSettled(subs.map(async (sub) => {
     const pushSub = {
       endpoint: sub.endpoint,
@@ -39,13 +41,17 @@ async function notifyLive(roomName, broadcasterName, orgId) {
       await webpush.sendNotification(pushSub, payload);
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) stale.push(sub.endpoint);
+      else { failed++; if (errSamples.length < 3) errSamples.push(err.statusCode || err.message); }
     }
   }));
 
   for (const endpoint of stale) {
     db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
   }
-  console.log(`[push] Sent to ${subs.length - stale.length} subscribers (${stale.length} stale removed)`);
+  // Count non-410/404 failures separately so a provider outage (e.g. all 5xx/413) isn't
+  // silently logged as "delivered".
+  const delivered = subs.length - stale.length - failed;
+  console.log(`[push] Sent to ${delivered}/${subs.length} subscribers (${stale.length} stale removed, ${failed} failed${errSamples.length ? ': ' + errSamples.join(', ') : ''})`);
 }
 
 // Telegram — per-org channel with global fallback

@@ -10,10 +10,16 @@ function hashPassword(password) {
 }
 
 function verifyPassword(password, stored) {
-  const [salt, hash] = stored.split(':');
-  const check = crypto.scryptSync(password, salt, 64).toString('hex');
+  // Guard against malformed / legacy-plaintext stored values (no ':' separator): return
+  // a clean false instead of throwing. A throw here would crash callers in the WS join
+  // path (no try/catch around the message handler) — an unauthenticated DoS.
+  const parts = String(stored == null ? '' : stored).split(':');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return false;
+  const [salt, hash] = parts;
+  let check;
+  try { check = crypto.scryptSync(password, salt, 64).toString('hex'); } catch { return false; }
   if (hash.length !== check.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex'));
+  try { return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex')); } catch { return false; }
 }
 
 function createBroadcaster(username, password, displayName, orgId) {
@@ -86,8 +92,9 @@ function adminResetPassword(broadcasterId) {
   const target = db.prepare('SELECT id, username, is_superadmin FROM broadcasters WHERE id = ?').get(broadcasterId);
   if (!target) return { ok: false, error: 'Broadcaster not found' };
   if (target.is_superadmin) return { ok: false, error: 'Cannot reset password for a superadmin via this route' };
-  // 12 chars, URL-safe base64 (no +/=) so they're easy to read/type
-  const tempPassword = crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);
+  // 12 chars, URL-safe base64url (never emits +/=) so length is constant and easy to read/type.
+  // (The old replace(/[+/=]/g,'') stripped chars AFTER encoding, which could yield as few as 7.)
+  const tempPassword = crypto.randomBytes(12).toString('base64url').slice(0, 12);
   const passwordHash = hashPassword(tempPassword);
   db.prepare('UPDATE broadcasters SET password_hash = ?, must_change_password = 1 WHERE id = ?').run(passwordHash, broadcasterId);
   // Kick any active sessions — the temp password should be the ONLY way back in
@@ -324,7 +331,10 @@ function authenticateWs(req) {
     if (idx < 1) return;
     const k = c.slice(0, idx).trim();
     const v = c.slice(idx + 1).trim();
-    if (k && v) cookies[k] = decodeURIComponent(v);
+    // Guard decodeURIComponent: a malformed percent-sequence (e.g. "%E0%A4%A") throws a
+    // URIError. authenticateWs runs in the wss 'connection' handler with no try/catch, so an
+    // unguarded throw would crash the whole process — an unauthenticated WS DoS.
+    if (k && v) { try { cookies[k] = decodeURIComponent(v); } catch { /* skip malformed cookie value */ } }
   });
   const raw = cookies[COOKIE_NAME];
   if (!raw) return null;
@@ -332,6 +342,10 @@ function authenticateWs(req) {
   if (unsigned === false) return null;
   const session = getSession(unsigned);
   if (!session) return null;
+  // Mirror broadcasterMiddleware: a broadcaster flagged for forced password rotation may not
+  // open the broadcaster WebSocket until they change it (the session row doesn't carry the flag).
+  const mustChange = db.prepare('SELECT must_change_password FROM broadcasters WHERE id = ?').get(session.broadcaster_id);
+  if (mustChange && mustChange.must_change_password) return null;
   return {
     id: session.broadcaster_id,
     username: session.username,

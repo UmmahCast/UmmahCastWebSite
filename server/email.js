@@ -345,8 +345,11 @@ async function notifyEmailSubscribers(roomName, orgId, roomSlug) {
       const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = require('./config');
       if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
         const https = require('https');
-        const text = `📧 *Email Subscribers Pending*\n\n${roomName} went live. ${subscribers.length} subscriber(s) would be notified but no SMTP configured.\n\n${emails}`;
-        const postData = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' });
+        // Plain text, NO parse_mode: emails/roomName are user-controlled and would otherwise
+        // allow Telegram-Markdown injection (clickable links) or break parsing — matching the
+        // hardening already applied to every send path in push.js.
+        const text = `📧 Email Subscribers Pending\n\n${roomName} went live. ${subscribers.length} subscriber(s) would be notified but no SMTP configured.\n\n${emails}`;
+        const postData = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text });
         const req = https.request({
           hostname: 'api.telegram.org',
           path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -412,14 +415,18 @@ async function sendDigests() {
     if (localHour(sub) !== sub.digest_hour) continue;
 
     const items = db.prepare(`
-      SELECT room_slug, room_name, occurred_at FROM email_digest_queue
+      SELECT id, room_slug, room_name, occurred_at FROM email_digest_queue
       WHERE subscriber_id = ? ORDER BY occurred_at ASC
     `).all(sub.id);
     if (items.length === 0) continue;
+    // Only delete the exact rows we're about to send. Events queued during the (awaited,
+    // network-bound) send get a higher id and survive for the next run — otherwise a broadcast
+    // that goes live mid-send would be silently dropped.
+    const maxId = Math.max(...items.map(i => i.id));
 
     const result = await sendDigestEmail(sub.email, sub.org_name, sub.org_slug, items, sub.verify_token);
     if (result.ok) {
-      db.prepare('DELETE FROM email_digest_queue WHERE subscriber_id = ?').run(sub.id);
+      db.prepare('DELETE FROM email_digest_queue WHERE subscriber_id = ? AND id <= ?').run(sub.id, maxId);
     }
   }
 }

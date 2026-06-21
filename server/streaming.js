@@ -62,16 +62,20 @@ function handleConnection(ws, req, user) {
         catch (err) { console.error('[record] Write error:', err.message); }
       }
 
+      let dropped = 0;
       for (const [listener] of state.listeners) {
         if (listener.readyState !== 1) continue;
         if (listener.bufferedAmount > BACKPRESSURE_THRESHOLD) {
           listener.close(4001, 'Too slow');
           state.listeners.delete(listener);
-          broadcastToRoom(orgId, roomSlug, statusPayload(orgId, roomSlug));
+          dropped++;
           continue;
         }
         listener.send(data, { binary: true });
       }
+      // Emit at most ONE status update per media frame, only if we culled someone —
+      // not a DB query + full-room broadcast per slow listener inside the hot loop.
+      if (dropped > 0) broadcastToRoom(orgId, roomSlug, statusPayload(orgId, roomSlug));
       return;
     }
 
@@ -79,6 +83,9 @@ function handleConnection(ws, req, user) {
     try { msg = JSON.parse(data); } catch { return; }
 
     if (msg.type === 'join') {
+      // Single-shot: a second join on the same socket would re-fire side effects and could
+      // leave one socket registered as both a listener and the broadcaster.
+      if (assignedRole) { ws.send(JSON.stringify({ type: 'error', message: 'Already joined' })); return; }
       roomSlug = msg.room || 'main';
 
       // Resolve org from message or user
@@ -114,10 +121,15 @@ function handleConnection(ws, req, user) {
           return;
         }
 
-        if (state.broadcaster && state.broadcaster.readyState === 1) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Room already has a broadcaster' }));
-          ws.close();
-          return;
+        if (state.broadcaster && state.broadcaster !== ws) {
+          if (state.broadcaster.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Room already has a broadcaster' }));
+            ws.close();
+            return;
+          }
+          // Stale/closing socket still registered: force it down so its (async) close handler
+          // becomes a no-op under the identity guard below, closing the takeover race window.
+          try { state.broadcaster.terminate(); } catch {}
         }
 
         assignedRole = 'broadcaster';
@@ -189,6 +201,14 @@ function handleConnection(ws, req, user) {
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       recordingFile = `${roomSlug}_${ts}.webm`;
       recordingStream = fs.createWriteStream(path.join(recDir, recordingFile));
+      // A writable stream emits 'error' asynchronously (ENOSPC disk full, EROFS, volume
+      // unmounted mid-broadcast); an unhandled stream 'error' is rethrown as an uncaught
+      // exception and would crash the whole process. Drop the recording and keep streaming.
+      recordingStream.on('error', (err) => {
+        console.error(`[record] Stream error for ${orgSlugVal}/${recordingFile}:`, err.message);
+        try { recordingStream && recordingStream.destroy(); } catch {}
+        recordingStream = null; // the binary handler's `if (recordingStream)` guard stops further writes
+      });
       recordingStart = Date.now();
 
       broadcastToRoom(orgId, roomSlug, statusPayload(orgId, roomSlug));
@@ -199,7 +219,9 @@ function handleConnection(ws, req, user) {
       stopBroadcast(orgId, roomSlug, recordingStream, recordingFile, recordingStart, ws);
       recordingStream = null;
       recordingFile = null;
-      clearInterval(heartbeatTimer);
+      // Keep the heartbeat running: the socket stays open and registered as the broadcaster
+      // after stop, so its liveness ping must continue. It's cleared only on 'close'. Without
+      // this, a stopped-but-connected broadcaster that then dies silently locks the room.
 
     } else if (msg.type === 'chat') {
       handleChat(ws, orgId, roomSlug, clientName, msg);
@@ -214,7 +236,9 @@ function handleConnection(ws, req, user) {
     if (!roomSlug || !orgId) return;
     const state = getRoomState(orgId, roomSlug);
 
-    if (assignedRole === 'broadcaster') {
+    if (assignedRole === 'broadcaster' && state.broadcaster === ws) {
+      // Only act if THIS socket is still the current broadcaster. A stale/replaced socket's
+      // (async) close must not tear down the broadcaster B that already took over the room.
       if (state.live) {
         stopBroadcast(orgId, roomSlug, recordingStream, recordingFile, recordingStart, null);
         recordingStream = null;
