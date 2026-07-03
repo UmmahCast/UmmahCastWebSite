@@ -5,6 +5,13 @@ const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, TELEGRAM_BOT_TOKEN, 
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+// Telegram parse_mode='HTML' needs only &, <, > escaped in user-controlled values (vs
+// MarkdownV2's 18 specials), so formatting can be restored safely wherever we escape every
+// interpolation at the call site. Ampersand first.
+function escTgHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function subscribe(subscription, orgId) {
   const { endpoint, keys } = subscription;
   db.prepare(`
@@ -66,14 +73,14 @@ async function notifyTelegram(roomName, orgId) {
 
   if (!TELEGRAM_BOT_TOKEN || !chatId) return;
 
-  // parse_mode dropped — roomName is user-controlled and Markdown special chars
-  // (* _ ` [ ]) in a name break the parse, or worse, let the broadcaster slip
-  // formatted links into the admin's Telegram channel.
-  const text = `🕌 ${roomName} is now live on UmmahCast!\n\n🎧 https://ummahcast.com`;
+  // HTML parse_mode — roomName is the only user-controlled value and it's escaped, so a name
+  // with <, > or & (or Markdown specials) can't break the parse or inject formatting/links.
+  const text = `🕌 <b>${escTgHtml(roomName)}</b> is now live on UmmahCast!\n\n🎧 https://ummahcast.com`;
 
   const postData = JSON.stringify({
     chat_id: chatId,
     text,
+    parse_mode: 'HTML',
     disable_web_page_preview: false,
   });
 
@@ -104,13 +111,14 @@ async function notifyTelegram(roomName, orgId) {
 async function notifyContactForm(name, email, type, message) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
 
-  // parse_mode dropped — entire payload is user-controlled. Even with escaping,
-  // MarkdownV2 has too many specials to reliably sanitize. Plain text is safer.
-  const text = `📬 New Contact Form Submission\n\nFrom: ${name}\nEmail: ${email || 'Not provided'}\nType: ${type}\n\nMessage:\n${message}`;
+  // HTML parse_mode with every field escaped — the whole payload is user-controlled, but
+  // escaping &, <, > neutralizes any injection while restoring the bold header/labels.
+  const text = `📬 <b>New Contact Form Submission</b>\n\n<b>From:</b> ${escTgHtml(name)}\n<b>Email:</b> ${escTgHtml(email || 'Not provided')}\n<b>Type:</b> ${escTgHtml(type)}\n\n<b>Message:</b>\n${escTgHtml(message)}`;
 
   const postData = JSON.stringify({
     chat_id: TELEGRAM_CHAT_ID,
     text,
+    parse_mode: 'HTML',
   });
 
   return new Promise((resolve) => {

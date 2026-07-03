@@ -1,7 +1,32 @@
 const crypto = require('crypto');
 const db = require('./db');
-const { COOKIE_NAME, SESSION_SECRET, SESSION_MAX_AGE } = require('./config');
+const { COOKIE_NAME, SESSION_SECRET, SESSION_MAX_AGE, TOTP_ENC_KEY } = require('./config');
 const cookieSignature = require('cookie-signature');
+
+// TOTP secret encryption at rest (AES-256-GCM). The key is a 32-byte hex string from env.
+// Stored format: "enc:v1:<iv hex>:<tag hex>:<ciphertext hex>". decrypt is format-detecting so
+// a legacy plaintext base32 secret (which never contains ':') passes straight through — the app
+// keeps working before AND after the one-time migration script encrypts existing rows.
+const _totpKey = /^[0-9a-fA-F]{64}$/.test(TOTP_ENC_KEY) ? Buffer.from(TOTP_ENC_KEY, 'hex') : null;
+if (!_totpKey && process.env.NODE_ENV === 'production') {
+  console.error('[WARN] TOTP_ENC_KEY not set (or not 64 hex chars) — TOTP secrets will be stored UNENCRYPTED. Set it and run scripts/encrypt-totp-secrets.js.');
+}
+function encryptTotpSecret(plain) {
+  if (!_totpKey || plain == null) return plain; // no key configured → store as-is (dev)
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', _totpKey, iv);
+  const ct = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:v1:${iv.toString('hex')}:${tag.toString('hex')}:${ct.toString('hex')}`;
+}
+function decryptTotpSecret(stored) {
+  if (typeof stored !== 'string' || !stored.startsWith('enc:v1:')) return stored; // legacy plaintext / null
+  if (!_totpKey) throw new Error('TOTP_ENC_KEY missing but an encrypted secret was found');
+  const [, , ivH, tagH, ctH] = stored.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', _totpKey, Buffer.from(ivH, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagH, 'hex'));
+  return Buffer.concat([decipher.update(Buffer.from(ctH, 'hex')), decipher.final()]).toString('utf8');
+}
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -250,7 +275,7 @@ function getBroadcaster(id) {
 }
 
 function setTotpEnabled(broadcasterId, secret, backupCodesHashed) {
-  db.prepare('UPDATE broadcasters SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?').run(secret, JSON.stringify(backupCodesHashed), broadcasterId);
+  db.prepare('UPDATE broadcasters SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?').run(encryptTotpSecret(secret), JSON.stringify(backupCodesHashed), broadcasterId);
 }
 
 function setTotpDisabled(broadcasterId) {
@@ -433,6 +458,7 @@ module.exports = {
   changePassword, updateDisplayName, deleteSession, parseCookie, getSession,
   loginBroadcasterStage1, consumePendingTotpLogin, getBroadcaster,
   setTotpEnabled, setTotpDisabled, claimTotpStep, consumeBackupCode, createSession,
+  encryptTotpSecret, decryptTotpSecret,
   hashPassword, verifyPassword, verifyPasswordAsync,
   is2faGraceExpired, TWO_FA_GRACE_DAYS,
   createIndividualBroadcaster, getBroadcastersByOrg,

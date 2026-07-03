@@ -37,6 +37,8 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - SUPERADMIN_USERNAME=${SUPERADMIN_USERNAME:-superadmin}
+      # 32-byte hex key for encrypting TOTP secrets at rest (AES-256-GCM). Optional in dev.
+      - TOTP_ENC_KEY=${TOTP_ENC_KEY:-}
       # Recording transcription (whisper sidecar) — off unless WHISPER_ENABLED=1
       - WHISPER_ENABLED=${WHISPER_ENABLED:-0}
       - WHISPER_URL=${WHISPER_URL:-http://whisper:8000}
