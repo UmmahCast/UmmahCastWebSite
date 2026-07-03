@@ -13,7 +13,32 @@ const HEARTBEAT_INTERVAL = 30000;
 
 if (!fs.existsSync(RECORDINGS_DIR)) fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
 
-function handleConnection(ws, req, user) {
+// Room-password brute-force throttle: cap FAILED join-password attempts per client IP in a
+// sliding window. The per-IP connection cap alone doesn't stop guessing (a rejected socket
+// closes and frees its slot), so a private room's audio could be brute-forced. Successful
+// joins don't count against the limit.
+const _pwFails = new Map(); // ip -> { count, resetAt }
+const PW_FAIL_MAX = 10;
+const PW_FAIL_WINDOW_MS = 5 * 60 * 1000;
+function _tooManyPwFails(ip) {
+  if (!ip) return false;
+  const e = _pwFails.get(ip);
+  return !!e && Date.now() <= e.resetAt && e.count >= PW_FAIL_MAX;
+}
+function _recordPwFail(ip) {
+  if (!ip) return;
+  const now = Date.now();
+  const e = _pwFails.get(ip);
+  if (!e || now > e.resetAt) _pwFails.set(ip, { count: 1, resetAt: now + PW_FAIL_WINDOW_MS });
+  else e.count++;
+}
+// Sweep expired entries so the map can't grow unbounded from one-off guessers.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of _pwFails) if (now > e.resetAt) _pwFails.delete(ip);
+}, PW_FAIL_WINDOW_MS).unref?.();
+
+function handleConnection(ws, req, user, clientIp) {
   let roomSlug = null;
   let orgId = null;
   let clientName = user?.displayName || 'Anonymous';
@@ -24,6 +49,10 @@ function handleConnection(ws, req, user) {
 
   const isBroadcaster = user?.role === 'broadcaster';
   let assignedRole = null;
+  // Synchronous latch: the message handler is async (it awaits the room-password KDF), so two
+  // 'join' frames could otherwise both pass the assignedRole guard before either sets it. Set
+  // this before the first await to make join strictly single-shot even under interleaving.
+  let joinHandled = false;
 
   let alive = true;
   let heartbeatTimer = null;
@@ -38,7 +67,7 @@ function handleConnection(ws, req, user) {
 
   ws.on('pong', () => { alive = true; });
 
-  ws.on('message', (data, isBinary) => {
+  ws.on('message', async (data, isBinary) => {
     if (isBinary) {
       if (assignedRole !== 'broadcaster') return;
 
@@ -85,7 +114,8 @@ function handleConnection(ws, req, user) {
     if (msg.type === 'join') {
       // Single-shot: a second join on the same socket would re-fire side effects and could
       // leave one socket registered as both a listener and the broadcaster.
-      if (assignedRole) { ws.send(JSON.stringify({ type: 'error', message: 'Already joined' })); return; }
+      if (assignedRole || joinHandled) { ws.send(JSON.stringify({ type: 'error', message: 'Already joined' })); return; }
+      joinHandled = true;
       roomSlug = msg.room || 'main';
 
       // Resolve org from message or user
@@ -114,6 +144,15 @@ function handleConnection(ws, req, user) {
       const state = getRoomState(orgId, roomSlug);
 
       if (isBroadcaster && msg.role === 'broadcaster') {
+        // Enforce the same mandatory-2FA grace the HTTP mutating routes enforce
+        // (enforce2faGracePeriod in index.js). Going live is the single most sensitive
+        // mutating action — without this gate a stolen password for a never-enrolled,
+        // past-grace account could broadcast even though every HTTP admin route returns 403.
+        if (require('./auth').is2faGraceExpired(user)) {
+          ws.send(JSON.stringify({ type: 'error', message: '2FA setup required before you can broadcast. Enable it in Settings.', code: 'MUST_ENABLE_2FA' }));
+          ws.close();
+          return;
+        }
         // Verify broadcaster belongs to this org (or is superadmin)
         if (!user.isSuperadmin && user.orgId !== orgId) {
           ws.send(JSON.stringify({ type: 'error', message: 'Not authorized for this organization' }));
@@ -146,8 +185,16 @@ function handleConnection(ws, req, user) {
 
       } else {
         if (dbRoom.password) {
-          const ok = require('./auth').verifyPassword(String(msg.password || ''), dbRoom.password);
+          if (_tooManyPwFails(clientIp)) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Too many attempts — try again later' }));
+            ws.close(1013, 'Rate limited');
+            return;
+          }
+          // Async KDF — keeps the scrypt work off the event loop so unauthenticated join
+          // floods on a password-protected room can't starve the whole process.
+          const ok = await require('./auth').verifyPasswordAsync(String(msg.password || ''), dbRoom.password);
           if (!ok) {
+            _recordPwFail(clientIp);
             ws.send(JSON.stringify({ type: 'error', message: 'Incorrect room password' }));
             ws.close();
             return;
@@ -166,6 +213,10 @@ function handleConnection(ws, req, user) {
         if (msg.displayName) clientName = sanitizeText(msg.displayName, 30);
         joinedAt = Date.now();
         state.listeners.set(ws, { displayName: clientName, joinedAt: Date.now() });
+        // Heartbeat listeners too (not just broadcasters): a half-open TCP connection that never
+        // sends a FIN would otherwise hold a room-capacity slot indefinitely. A missed pong now
+        // terminates the socket, firing 'close' which frees the slot.
+        startHeartbeat();
         broadcastToRoom(orgId, roomSlug, statusPayload(orgId, roomSlug));
         logAnalytics(roomSlug, orgId, 'listener_join', 1);
         logAnalytics(roomSlug, orgId, 'listener_count', state.listeners.size);

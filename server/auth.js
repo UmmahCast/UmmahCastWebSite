@@ -22,6 +22,25 @@ function verifyPassword(password, stored) {
   try { return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex')); } catch { return false; }
 }
 
+// Async equivalent of verifyPassword — offloads the scrypt KDF to libuv's threadpool instead
+// of blocking the event loop. Used on the WebSocket room-password path, which is reachable by
+// unauthenticated clients: synchronous scryptSync there lets a flood of join attempts starve
+// the whole process. Same malformed-input guards as the sync version (never throws).
+function verifyPasswordAsync(password, stored) {
+  return new Promise((resolve) => {
+    const parts = String(stored == null ? '' : stored).split(':');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return resolve(false);
+    const [salt, hash] = parts;
+    crypto.scrypt(password, salt, 64, (err, derived) => {
+      if (err) return resolve(false);
+      try {
+        const hb = Buffer.from(hash, 'hex');
+        resolve(hb.length === derived.length && crypto.timingSafeEqual(hb, derived));
+      } catch { resolve(false); }
+    });
+  });
+}
+
 function createBroadcaster(username, password, displayName, orgId) {
   const passwordHash = hashPassword(password);
   const result = db.prepare('INSERT INTO broadcasters (username, password_hash, display_name, org_id) VALUES (?, ?, ?, ?)').run(
@@ -334,6 +353,20 @@ function broadcasterMiddleware(req, res, next) {
   next();
 }
 
+// Mandatory-2FA grace: an individual broadcaster must enable TOTP within TWO_FA_GRACE_DAYS
+// of first login. Superadmins and shared accounts are exempt (shared accounts can't enroll).
+// Single source of truth — the HTTP middleware (enforce2faGracePeriod) and the WS broadcast
+// gate both call this so the two paths can never drift. `b` uses the req.broadcaster shape
+// (camelCase totpEnabled/firstLoginAt/accountType/isSuperadmin), which authenticateWs also emits.
+const TWO_FA_GRACE_DAYS = 7;
+function is2faGraceExpired(b) {
+  if (!b || b.isSuperadmin || b.accountType === 'shared' || b.totpEnabled) return false;
+  if (!b.firstLoginAt) return false;
+  // firstLoginAt is SQLite datetime('now') (UTC, no tz marker) — append 'Z' so it parses as UTC.
+  const days = (Date.now() - new Date(b.firstLoginAt + 'Z').getTime()) / (24 * 60 * 60 * 1000);
+  return days >= TWO_FA_GRACE_DAYS;
+}
+
 function authenticateWs(req) {
   const cookies = {};
   (req.headers.cookie || '').split(';').forEach(c => {
@@ -352,10 +385,11 @@ function authenticateWs(req) {
   if (unsigned === false) return null;
   const session = getSession(unsigned);
   if (!session) return null;
-  // Mirror broadcasterMiddleware: a broadcaster flagged for forced password rotation may not
-  // open the broadcaster WebSocket until they change it (the session row doesn't carry the flag).
-  const mustChange = db.prepare('SELECT must_change_password FROM broadcasters WHERE id = ?').get(session.broadcaster_id);
-  if (mustChange && mustChange.must_change_password) return null;
+  // Mirror broadcasterMiddleware: pull the extended row so the WS path can enforce the same
+  // gates the HTTP middleware does — forced password rotation AND the mandatory-2FA grace.
+  // (The session row alone carries neither flag.)
+  const b = db.prepare('SELECT must_change_password, totp_enabled, first_login_at, account_type FROM broadcasters WHERE id = ?').get(session.broadcaster_id);
+  if (b && b.must_change_password) return null;
   return {
     id: session.broadcaster_id,
     username: session.username,
@@ -364,6 +398,9 @@ function authenticateWs(req) {
     orgId: session.org_id,
     orgSlug: session.org_slug,
     isSuperadmin: !!session.is_superadmin,
+    totpEnabled: !!(b && b.totp_enabled),
+    firstLoginAt: (b && b.first_login_at) || null,
+    accountType: (b && b.account_type) || 'individual',
   };
 }
 
@@ -396,7 +433,8 @@ module.exports = {
   changePassword, updateDisplayName, deleteSession, parseCookie, getSession,
   loginBroadcasterStage1, consumePendingTotpLogin, getBroadcaster,
   setTotpEnabled, setTotpDisabled, claimTotpStep, consumeBackupCode, createSession,
-  hashPassword, verifyPassword,
+  hashPassword, verifyPassword, verifyPasswordAsync,
+  is2faGraceExpired, TWO_FA_GRACE_DAYS,
   createIndividualBroadcaster, getBroadcastersByOrg,
   transferOrgLeadership, forceSetOrgLeader, deleteBroadcaster,
   adminResetPassword, adminDisableTotp,

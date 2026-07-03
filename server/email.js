@@ -635,12 +635,19 @@ async function quickFollow(email, orgId, roomSlug) {
   // Reactivate if unsubscribed
   db.prepare('UPDATE email_subscribers SET unsubscribed_at = NULL WHERE id = ?').run(sub.id);
 
+  // SECURITY: never return an EXISTING subscriber's verify_token from this email-keyed,
+  // unauthenticated endpoint — that token is the bearer credential for all preference
+  // self-service, so echoing it back would let anyone who knows the email read/mutate/
+  // unsubscribe the victim's subscription. Instead, prove inbox control: email the manage
+  // (or verify) link and return no token. Responses are also made indistinguishable so the
+  // endpoint can't be used to enumerate which emails are verified subscribers of an org.
   if (!sub.verified) {
     await sendVerificationEmail(email, sub.verify_token, orgName);
-    return { ok: true, token: sub.verify_token, verified: false, message: 'Check your email to finish verifying' };
+    return { ok: true, verified: false, alreadySubscribed: true, message: 'Check your email to finish verifying' };
   }
 
-  return { ok: true, token: sub.verify_token, verified: true, message: `You're now following — notifications enabled` };
+  await emailPreferencesLink(email, orgId);
+  return { ok: true, verified: true, alreadySubscribed: true, message: "You're already subscribed — check your email for your manage link" };
 }
 
 // Get subscribed room slugs for a token (lightweight for bell state hydration)

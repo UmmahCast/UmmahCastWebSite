@@ -951,7 +951,11 @@
     }
     window.adminDisable2fa = adminDisable2fa;
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    // Escapes < > & (via textContent) AND quotes, so the result is safe in an HTML *attribute*
+    // context too — several call sites interpolate esc() into title="…"/data-…="…". Without the
+    // quote escaping, a value containing " (e.g. a crafted org name or telegramChatId) breaks out
+    // of the attribute into markup (stored XSS).
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
     function relativeAgo(iso) {
       if (!iso) return '';

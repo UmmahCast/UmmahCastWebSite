@@ -151,7 +151,12 @@
         }
         if (data.token) setToken(orgSlug, data.token);
         transition(() => setBellState(btn, true, true));
-        toast(data.verified ? `Following ${roomName}` : `Almost there — check your email to verify`, 'success');
+        // No token comes back for an already-existing subscriber (the server emails their manage
+        // link instead of disclosing the token) — tell them to check their inbox.
+        const followMsg = data.alreadySubscribed
+          ? 'Already subscribed — check your email for your manage link'
+          : data.verified ? `Following ${roomName}` : `Almost there — check your email to verify`;
+        toast(followMsg, 'success');
         // Refresh "Manage Preferences" link in nav drawer if present
         if (window.refreshNavPrefsLink) window.refreshNavPrefsLink();
       } catch {
