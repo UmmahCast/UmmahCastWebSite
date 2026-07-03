@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="/css/style.css?v=20">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <script src="/js/tos-gate.js" defer></script>
   <script src="/js/password-gate.js" defer></script>
   <style>
@@ -63,7 +64,7 @@
 
     <div id="room-list"></div>
 
-    <button class="btn-stop" id="toggle-create-btn" style="font-size:0.85rem; margin-top:0.5rem;" onclick="toggleCreateRoom()">+ New Room</button>
+    <button class="btn-stop" id="toggle-create-btn" style="font-size:0.85rem; margin-top:0.5rem;" data-action="toggleCreateRoom">+ New Room</button>
 
     <div class="card hidden" id="create-room-card" style="margin-top:0.75rem; border-style:dashed;">
       <form id="create-room-form">
@@ -82,7 +83,7 @@
         <div id="create-error" class="hidden" style="color:var(--accent); font-size:0.85rem; margin-bottom:0.75rem;"></div>
         <div style="display:flex; gap:0.5rem;">
           <button type="submit" class="btn-live" style="font-size:0.85rem; padding:0.6rem;">Create</button>
-          <button type="button" class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" onclick="toggleCreateRoom()">Cancel</button>
+          <button type="button" class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" data-action="toggleCreateRoom">Cancel</button>
         </div>
       </form>
     </div>
@@ -112,7 +113,7 @@
         </div>
         <button class="btn-live" id="btn-live">Go Live</button>
         <button class="btn-stop hidden" id="btn-stop">Stop Broadcast</button>
-        <button class="btn-share hidden" id="btn-share" onclick="shareLive()" aria-label="Share live link"
+        <button class="btn-share hidden" id="btn-share" data-action="shareLive" aria-label="Share live link"
           style="margin-top:0.5rem; background:var(--green); color:#000; font-size:0.9rem;">
           📤 Share Link
         </button>
@@ -142,14 +143,14 @@
             style="width:100%; padding:0.5rem 0.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.9rem; font-family:inherit;">
         </div>
         <div style="display:flex; gap:0.5rem;">
-          <button class="btn-live" style="font-size:0.85rem; padding:0.6rem;" onclick="publishRecording()">Publish</button>
-          <button class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" onclick="skipPublish()">Keep Private</button>
+          <button class="btn-live" style="font-size:0.85rem; padding:0.6rem;" data-action="publishRecording">Publish</button>
+          <button class="btn-stop" style="font-size:0.85rem; padding:0.6rem;" data-action="skipPublish">Keep Private</button>
         </div>
       </div>
 
       <!-- Schedule management (collapsible) -->
       <div class="card" id="schedule-mgmt-card">
-        <div class="collapsible-header" onclick="toggleSchedule()">
+        <div class="collapsible-header" data-action="toggleSchedule">
           <span style="font-size:0.85rem; font-weight:600;">Schedule <span id="sched-count" style="color:var(--text-muted); font-weight:400;"></span></span>
           <span id="sched-chevron" class="chevron">▼</span>
         </div>
@@ -167,7 +168,7 @@
               <option value="WEEKLY">Weekly</option>
               <option value="MONTHLY">Monthly</option>
             </select>
-            <button class="btn-live" style="width:auto; padding:0.4rem 0.75rem; font-size:0.8rem; min-height:auto;" onclick="addEvent()">Add</button>
+            <button class="btn-live" style="width:auto; padding:0.4rem 0.75rem; font-size:0.8rem; min-height:auto;" data-action="addEvent">Add</button>
           </div>
           <div id="sched-repeat-detail" class="hidden" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem; padding:0.5rem 0.75rem; background:var(--surface); border-radius:var(--radius); font-size:0.75rem; align-items:center;">
             <span style="color:var(--text-muted);">Repeats every:</span>
@@ -191,7 +192,7 @@
             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Manage Categories</div>
             <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
               <input type="text" id="new-cat-name" placeholder="New category name" style="flex:1; padding:0.35rem 0.5rem; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-size:0.8rem; font-family:inherit;">
-              <button class="btn-stop" style="width:auto; padding:0.35rem 0.6rem; font-size:0.8rem; min-height:auto;" onclick="addCat()">Add</button>
+              <button class="btn-stop" style="width:auto; padding:0.35rem 0.6rem; font-size:0.8rem; min-height:auto;" data-action="addCat">Add</button>
             </div>
             <div id="cat-list" style="display:flex; flex-wrap:wrap; gap:0.35rem;"></div>
           </div>
@@ -200,7 +201,7 @@
 
       <!-- Recordings management (collapsible) -->
       <div class="card hidden" id="recordings-mgmt-card">
-        <div class="collapsible-header" onclick="toggleRecordings()">
+        <div class="collapsible-header" data-action="toggleRecordings">
           <span style="font-size:0.85rem; font-weight:600;">Recordings <span id="rec-count" style="color:var(--text-muted); font-weight:400;"></span></span>
           <span id="rec-chevron" class="chevron">▼</span>
         </div>

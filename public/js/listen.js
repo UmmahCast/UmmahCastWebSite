@@ -222,7 +222,7 @@ function joinRoom() {
   if (_roomHasPassword !== false) return;
   const pwSection = document.getElementById('password-section');
   if (pwSection && !pwSection.classList.contains('hidden')) return;
-  const joinBtn = document.getElementById('join-btn') || document.querySelector('[onclick="joinRoom()"]');
+  const joinBtn = document.getElementById('join-btn') || document.querySelector('[data-action="joinRoom"]');
   if (joinBtn) joinBtn.click();
   else joinRoom();
 })();

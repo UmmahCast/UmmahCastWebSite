@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/css/style.css?v=20">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <style>
     .contact { max-width: 540px; width: 100%; }
     .contact p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1rem; }
@@ -37,7 +38,7 @@
     <p>UmmahCast is built for the community, by the community. Your feedback helps us improve. Whether it's a feature request, a bug report, or just a kind word — we want to hear from you.</p>
 
     <div class="card" id="form-card">
-      <form id="contact-form" onsubmit="return submitForm(event)">
+      <form id="contact-form" data-action-submit="submitForm">
         <div class="form-field">
           <label for="contact-name">Your Name</label>
           <input type="text" id="contact-name" name="name" placeholder="How should we address you?" required maxlength="100">

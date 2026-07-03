@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/style.css?v=20">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <style>
     .apply { max-width: 540px; width: 100%; }
     .apply p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1rem; }
@@ -34,7 +35,7 @@
     <p>UmmahCast is free and open to mosque communities everywhere. Tell us about your mosque and we'll be in touch to set up your community space.</p>
 
     <div class="card" id="form-card">
-      <form id="apply-form" onsubmit="return submitApply(event)">
+      <form id="apply-form" data-action-submit="submitApply">
         <div class="form-field">
           <label for="apply-org">Mosque / Organization Name</label>
           <input type="text" id="apply-org" name="orgName" required maxlength="200" placeholder="e.g. Masjid Al-Noor">

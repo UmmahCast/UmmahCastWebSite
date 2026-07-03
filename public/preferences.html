@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/style.css?v=20">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <style>
     .prefs { max-width: 540px; width: 100%; }
     .prefs h2 { margin-bottom: 0.5rem; }
@@ -54,7 +55,7 @@
       <div id="unsub-banner" class="unsub-banner" style="display:none;">
         <strong>You're currently unsubscribed.</strong>
         <div style="font-size:0.85rem; margin-top:0.25rem;">You won't receive any email notifications.</div>
-        <button onclick="resubscribe()">Resubscribe</button>
+        <button data-action="resubscribe">Resubscribe</button>
       </div>
 
       <!-- Frequency -->
@@ -89,7 +90,7 @@
           <input type="time" id="quiet-start">
           <label>To</label>
           <input type="time" id="quiet-end">
-          <button type="button" class="btn-secondary" onclick="clearQuiet()" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Clear</button>
+          <button type="button" class="btn-secondary" data-action="clearQuiet" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Clear</button>
         </div>
       </div>
 
@@ -99,7 +100,7 @@
         <div class="time-row">
           <label for="tz">Your timezone:</label>
           <input type="text" id="tz" style="flex:1; min-width:200px;" placeholder="e.g. America/New_York">
-          <button type="button" class="btn-secondary" onclick="autoTimezone()" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Auto-detect</button>
+          <button type="button" class="btn-secondary" data-action="autoTimezone" style="width:auto; padding:0.3rem 0.75rem; font-size:0.8rem;">Auto-detect</button>
         </div>
         <p class="help">Used for digest timing and quiet hours.</p>
       </div>
@@ -112,7 +113,7 @@
       </div>
 
       <div class="save-bar">
-        <button class="btn-primary" id="save-btn" onclick="savePrefs()" style="width:auto; padding:0.5rem 1.5rem; font-size:0.9rem;">Save Preferences</button>
+        <button class="btn-primary" id="save-btn" data-action="savePrefs" style="width:auto; padding:0.5rem 1.5rem; font-size:0.9rem;">Save Preferences</button>
         <span class="status-msg" id="status-msg"></span>
       </div>
 
@@ -120,7 +121,7 @@
       <div class="prefs-section danger-zone" style="margin-top:2rem;">
         <h3>Unsubscribe</h3>
         <p class="help" style="margin-top:0; margin-bottom:0.75rem;">Stop all email notifications from this organization. You can resubscribe anytime from this page.</p>
-        <button class="btn-danger-outline" onclick="unsubscribe()">Unsubscribe from all emails</button>
+        <button class="btn-danger-outline" data-action="unsubscribe">Unsubscribe from all emails</button>
       </div>
 
     </div>
