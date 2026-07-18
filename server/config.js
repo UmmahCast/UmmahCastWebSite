@@ -26,6 +26,23 @@ module.exports = {
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '',
   SUPERADMIN_USERNAME: process.env.SUPERADMIN_USERNAME || 'superadmin',
 
+  // 32-byte key (64 hex chars) for encrypting TOTP secrets at rest (AES-256-GCM). Optional:
+  // when unset, secrets are stored as-is (dev) — auth.js logs a prod warning. Decryption is
+  // format-detecting, so legacy plaintext secrets keep working through the migration.
+  TOTP_ENC_KEY: process.env.TOTP_ENC_KEY || '',
+
+  // Recording transcription (whisper sidecar). Off unless WHISPER_ENABLED=1, at
+  // which point the shared secret becomes mandatory in prod (fatals if missing).
+  WHISPER_ENABLED: process.env.WHISPER_ENABLED === '1',
+  WHISPER_URL: process.env.WHISPER_URL || 'http://whisper:8000',
+  WHISPER_SHARED_SECRET: process.env.WHISPER_ENABLED === '1'
+    ? requireEnv('WHISPER_SHARED_SECRET')
+    : (process.env.WHISPER_SHARED_SECRET || ''),
+  // HTTP listener for the sidecar callback. Not published to the host and not in the
+  // cloudflared ingress, so it's unreachable through the public tunnel; the shared secret
+  // (constant-time checked) is the actual access control for same-Docker-network peers.
+  INTERNAL_PORT: parseInt(process.env.INTERNAL_PORT || '3001', 10),
+
   // Email — SMTP chain (up to 8 providers, failover order)
   SMTP_FROM: process.env.SMTP_FROM || 'notifications@ummahcast.com',
   SMTP_PROVIDERS: (() => {

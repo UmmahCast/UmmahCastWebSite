@@ -32,7 +32,7 @@
     console.log('[player]', msg);
   }
 
-  function create({ id, orgSlug, filename, title, durationSeconds, roomSlug, autoplay = false, startSeconds = 0, noShare = false, srcOverride = null }) {
+  function create({ id, orgSlug, filename, title, durationSeconds, roomSlug, autoplay = false, startSeconds = 0, noShare = false, srcOverride = null, transcriptStatus = undefined }) {
     const wrap = document.createElement('div');
     wrap.className = 'rec-player';
     wrap.dataset.recordingId = id;
@@ -187,10 +187,166 @@
       toast('Could not load recording', 'error');
     });
 
+    // Transcript (English captions). Show the toggle when a transcript exists or
+    // is pending; when status is unknown (undefined, e.g. focused recording view)
+    // show it and lazy-load — it hides itself if nothing is available.
+    if (transcriptStatus === undefined || transcriptStatus === 'done' || transcriptStatus === 'pending') {
+      addTranscript(wrap, audio, id);
+    }
+
     // Expose audio for external control (e.g. share-at-timestamp landing)
     wrap._audio = audio;
     wrap.expand = expand;
     return wrap;
+  }
+
+  // Safe match-highlighter: returns a DocumentFragment, never innerHTML, so
+  // model-generated transcript text can't inject markup.
+  function buildHighlighter(query) {
+    const q = (query || '').trim().toLowerCase();
+    return function (text) {
+      const frag = document.createDocumentFragment();
+      if (!q) { frag.appendChild(document.createTextNode(text)); return frag; }
+      const lower = text.toLowerCase();
+      let i = 0, idx;
+      while ((idx = lower.indexOf(q, i)) !== -1) {
+        if (idx > i) frag.appendChild(document.createTextNode(text.slice(i, idx)));
+        const m = document.createElement('mark');
+        m.textContent = text.slice(idx, idx + q.length);
+        frag.appendChild(m);
+        i = idx + q.length;
+      }
+      if (i < text.length) frag.appendChild(document.createTextNode(text.slice(i)));
+      return frag;
+    };
+  }
+
+  // Collapsible transcript panel: lazy-loads on first open, renders clickable
+  // (seek) segments, supports search, and highlights the segment now playing.
+  function addTranscript(wrap, audio, id) {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'rec-transcript-toggle';
+    toggle.textContent = 'Transcript';
+    toggle.setAttribute('aria-expanded', 'false');
+
+    const panel = document.createElement('div');
+    panel.className = 'rec-transcript';
+    panel.dir = 'ltr';      // captions are English; don't inherit page RTL
+    panel.lang = 'en';
+    panel.hidden = true;
+
+    wrap.appendChild(toggle);
+    wrap.appendChild(panel);
+
+    let loaded = false;
+    let segEls = [];
+    let activeIdx = -1;
+
+    function setMsg(text) {
+      panel.textContent = '';
+      const p = document.createElement('div');
+      p.className = 'rec-transcript-empty';
+      p.textContent = text;
+      panel.appendChild(p);
+    }
+
+    toggle.addEventListener('click', () => {
+      if (!panel.hidden) { panel.hidden = true; toggle.setAttribute('aria-expanded', 'false'); return; }
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      wrap.classList.add('expanded');
+      if (!loaded) { load(); }
+    });
+
+    async function load() {
+      setMsg('Loading transcript…');
+      let data;
+      try {
+        const res = await fetch(`/api/recordings/${id}/transcript`);
+        if (!res.ok) { panel.hidden = true; toggle.hidden = true; return; }
+        data = await res.json();
+      } catch { setMsg('Transcript unavailable.'); return; }
+
+      if (data.status === 'pending') { setMsg('Transcript is being generated…'); return; } // retry on next open
+      loaded = true;
+      if (data.status !== 'done' || !Array.isArray(data.segments) || data.segments.length === 0) {
+        panel.hidden = true; toggle.hidden = true; return;
+      }
+      render(data.segments);
+    }
+
+    function render(segments) {
+      panel.textContent = '';
+      const search = document.createElement('input');
+      search.type = 'search';
+      search.className = 'rec-transcript-search';
+      search.placeholder = 'Search transcript…';
+      search.setAttribute('aria-label', 'Search transcript');
+      panel.appendChild(search);
+
+      const list = document.createElement('div');
+      list.className = 'rec-transcript-list';
+      panel.appendChild(list);
+
+      segEls = segments.map((s) => {
+        const start = Number(s.start) || 0;
+        const end = Number(s.end) || start;
+        const text = String(s.text || '');
+        const line = document.createElement('div');
+        line.className = 'rec-transcript-seg';
+        const ts = document.createElement('span');
+        ts.className = 'rec-transcript-ts';
+        ts.textContent = fmtTime(start);
+        const txt = document.createElement('span');
+        txt.className = 'rec-transcript-text';
+        txt.textContent = text;
+        line.appendChild(ts);
+        line.appendChild(txt);
+        line.addEventListener('click', () => {
+          try { audio.currentTime = start; } catch {}
+          audio.play().catch(() => {});
+        });
+        list.appendChild(line);
+        return { el: line, txtEl: txt, start, end, text };
+      });
+
+      let timer;
+      search.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => applySearch(search.value), 120);
+      });
+    }
+
+    function applySearch(q) {
+      const hl = buildHighlighter(q);
+      const ql = (q || '').trim().toLowerCase();
+      let first = null;
+      for (const seg of segEls) {
+        const match = !ql || seg.text.toLowerCase().includes(ql);
+        seg.el.style.display = match ? '' : 'none';
+        seg.txtEl.textContent = '';
+        seg.txtEl.appendChild(hl(seg.text));
+        if (match && !first) first = seg.el;
+      }
+      if (ql && first) first.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Follow playback — highlight the active segment (no auto-scroll, so it never
+    // hijacks the reader's position).
+    audio.addEventListener('timeupdate', () => {
+      if (panel.hidden || segEls.length === 0) return;
+      const t = audio.currentTime;
+      if (activeIdx >= 0 && segEls[activeIdx]) {
+        const a = segEls[activeIdx];
+        if (t >= a.start && t < a.end) return;
+      }
+      const idx = segEls.findIndex((s) => t >= s.start && t < s.end);
+      if (idx === activeIdx) return;
+      if (activeIdx >= 0 && segEls[activeIdx]) segEls[activeIdx].el.classList.remove('active');
+      activeIdx = idx;
+      if (idx >= 0) segEls[idx].el.classList.add('active');
+    });
   }
 
   // Convenience: build from API meta payload

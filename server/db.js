@@ -86,7 +86,9 @@ try { db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_analytics_room_ts ON analytics(room_slug, ts);
-  CREATE INDEX IF NOT EXISTS idx_rooms_org ON rooms(org_id);`);
+  CREATE INDEX IF NOT EXISTS idx_rooms_org ON rooms(org_id);
+  CREATE INDEX IF NOT EXISTS idx_schedules_org_room ON schedules(org_id, room_slug);
+  CREATE INDEX IF NOT EXISTS idx_schedules_org_starts ON schedules(org_id, starts_at);`);
 } catch (err) {
   // Existing DB — tables exist with old schema, migrations below will add columns
   console.log('[db] Schema create skipped (existing DB), applying migrations...');
@@ -105,6 +107,7 @@ try { db.exec(`
     published INTEGER DEFAULT 0,
     recorded_at TEXT DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_recordings_org_room ON recordings(org_id, room_slug);
 `); } catch {}
 
 // --- Ensure organizations table exists (needed for migrations) ---
@@ -127,6 +130,8 @@ try { db.exec('ALTER TABLE broadcasters ADD COLUMN is_superadmin INTEGER DEFAULT
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_secret TEXT'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_enabled INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_backup_codes TEXT'); } catch {}
+// Last TOTP time-step accepted at login — blocks replay of a code within its validity window.
+try { db.exec('ALTER TABLE broadcasters ADD COLUMN totp_last_step INTEGER'); } catch {}
 try { db.exec("ALTER TABLE broadcasters ADD COLUMN account_type TEXT DEFAULT 'individual'"); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN is_org_leader INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE broadcasters ADD COLUMN must_change_password INTEGER DEFAULT 0'); } catch {}
@@ -186,6 +191,26 @@ try { db.exec("ALTER TABLE schedules ADD COLUMN recurrence_until TEXT"); } catch
 try { db.exec("ALTER TABLE schedules ADD COLUMN timezone TEXT DEFAULT 'UTC'"); } catch {}
 try { db.exec('ALTER TABLE analytics ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
 try { db.exec('ALTER TABLE recordings ADD COLUMN org_id INTEGER REFERENCES organizations(id)'); } catch {}
+
+// --- Recording transcripts (English captions for published recordings) ---
+try { db.exec(`
+  CREATE TABLE IF NOT EXISTS transcripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+    org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+    room_slug TEXT,
+    lang TEXT DEFAULT 'en',
+    status TEXT DEFAULT 'pending',
+    full_text TEXT,
+    segments TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(recording_id, lang)
+  );
+`); } catch {}
+
+// Per-org opt-in for auto-transcribing published recordings.
+try { db.exec('ALTER TABLE organizations ADD COLUMN captions_enabled INTEGER DEFAULT 0'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN telegram_chat_id TEXT'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN pending_deletion_at TEXT'); } catch {}
 try { db.exec('ALTER TABLE organizations ADD COLUMN archive_token TEXT'); } catch {}

@@ -66,25 +66,37 @@ async function renderRecordingView(id, startT) {
 
 let ws;
 let mediaSource;
+let _mseUrl = null;        // object URL for mediaSource — tracked so we can revoke it (no leak)
 let sourceBuffer;
 let queue = [];
+let _lastLiveToast = null; // 'live' | 'offline' — so the toast fires only on real transitions
 let reconnectAttempts = 0;
 let capAttempts = 0; // separate counter so a network blip doesn't inherit cap-backoff
+const MAX_RECONNECT = 12;  // stop hammering after ~a few minutes of backoff (fatal/rejected close)
 let displayName = '';
 let roomPassword = '';
 
 // Skip live setup if we're in recording-share mode
 const _inRecordingMode = Number.isInteger(recordingIdParam) && recordingIdParam > 0;
 
+// Resolved once we've determined whether the room is password-protected, so auto-resume
+// can wait for the real signal instead of guessing a fixed delay.
+let _resolvePreload;
+const preloadReady = new Promise((r) => { _resolvePreload = r; });
+let _roomHasPassword = null; // null = not yet known
+
 // Pre-load room info
 (async () => {
-  if (_inRecordingMode) return;
-  const rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json();
-  const info = rooms.find(r => r.slug === room);
+  if (_inRecordingMode) { _resolvePreload(); return; }
+  let rooms = [];
+  try { rooms = await (await fetch(`/api/orgs/${orgSlug}/rooms`)).json(); } catch {}
+  const info = Array.isArray(rooms) ? rooms.find(r => r.slug === room) : null;
   if (info) {
     document.getElementById('room-title-prompt').textContent = info.name;
+    _roomHasPassword = !!info.hasPassword;
     if (info.hasPassword) document.getElementById('password-section').classList.remove('hidden');
   }
+  _resolvePreload(); // password state determined (or attempted) — unblock auto-resume
 
   // Load schedule
   const scheds = await (await fetch(`/api/orgs/${orgSlug}/rooms/${room}/schedule`)).json();
@@ -154,6 +166,7 @@ const _inRecordingMode = Number.isInteger(recordingIdParam) && recordingIdParam 
           title: titleLabel,
           durationSeconds: r.duration_seconds,
           roomSlug: room,
+          transcriptStatus: r.transcript_status || 'none',
         });
         list.appendChild(player);
       } else {
@@ -170,6 +183,14 @@ const savedName = localStorage.getItem('uc_name');
 if (savedName) document.getElementById('name-input').value = savedName;
 
 function joinRoom() {
+  // Never connect blank to a password-protected room (the WS join would just be rejected and
+  // loop). If the password field is shown but empty, focus it and bail.
+  const _pwSection = document.getElementById('password-section');
+  const _pwInput = document.getElementById('password-input');
+  if (_pwSection && !_pwSection.classList.contains('hidden') && !(_pwInput && _pwInput.value)) {
+    if (_pwInput) _pwInput.focus();
+    return;
+  }
   displayName = document.getElementById('name-input').value.trim() || 'Anonymous';
   roomPassword = document.getElementById('password-input')?.value || '';
   localStorage.setItem('uc_name', displayName);
@@ -194,19 +215,19 @@ function joinRoom() {
 // Auto-resume from the cross-page pill: if ?autoresume=1 and we have a saved
 // name AND the room isn't password-protected (we have no stored password),
 // click Join automatically. Password rooms still require manual entry.
-(function maybeAutoResume() {
+(async function maybeAutoResume() {
   if (_inRecordingMode) return;
   if (params.get('autoresume') !== '1') return;
   if (!localStorage.getItem('uc_name')) return;
-  // Wait until pre-load determines whether the room has a password.
-  // The pre-load IIFE above un-hides #password-section if needed.
-  setTimeout(() => {
-    const pwSection = document.getElementById('password-section');
-    if (pwSection && !pwSection.classList.contains('hidden')) return;
-    const joinBtn = document.getElementById('join-btn') || document.querySelector('[onclick="joinRoom()"]');
-    if (joinBtn) joinBtn.click();
-    else joinRoom();
-  }, 300);
+  // Wait for the actual pre-load to determine password state (no fixed-delay guess), and only
+  // auto-join when we POSITIVELY know the room is not password-protected — fail safe otherwise.
+  await preloadReady;
+  if (_roomHasPassword !== false) return;
+  const pwSection = document.getElementById('password-section');
+  if (pwSection && !pwSection.classList.contains('hidden')) return;
+  const joinBtn = document.getElementById('join-btn') || document.querySelector('[data-action="joinRoom"]');
+  if (joinBtn) joinBtn.click();
+  else joinRoom();
 })();
 
 const dot = document.getElementById('dot');
@@ -277,12 +298,22 @@ function connect() {
   ws.onclose = (event) => {
     dot.classList.remove('connected', 'live');
     cleanupPlayback();
+    const code = event && event.code;
     let delay;
-    if (event && event.code === 1013) {
+    if (code === 1013) {
       // Room at capacity — back off harder so we don't pile on
       delay = Math.min(15000 * Math.pow(1.5, capAttempts), 120000);
       capAttempts++;
       statusText.textContent = `Room at capacity, retrying in ${Math.round(delay / 1000)}s…`;
+    } else if (code === 1008) {
+      // Permanent rejection (e.g. too many connections from this network) — reconnecting just
+      // hammers the server and can't succeed. Stop and tell the user.
+      statusText.textContent = 'Too many connections from your network — try again later.';
+      return;
+    } else if (reconnectAttempts >= MAX_RECONNECT) {
+      // Give up after sustained failure (room deleted, server down…) instead of looping forever.
+      statusText.textContent = 'Disconnected — refresh the page to reconnect.';
+      return;
     } else {
       delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
       reconnectAttempts++;
@@ -456,9 +487,12 @@ if (volumeSlider) {
 }
 
 function initMSE() {
+  if (mediaSource) return; // already initializing — a burst of chunks before 'sourceopen' must
+                           // not each spawn a MediaSource (orphans that leak + fight over the audio)
   const a = getAudio();
   mediaSource = new MediaSource();
-  a.src = URL.createObjectURL(mediaSource);
+  _mseUrl = URL.createObjectURL(mediaSource);
+  a.src = _mseUrl;
   mediaSource.addEventListener('sourceopen', () => {
     try {
       sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs=opus');
@@ -508,14 +542,22 @@ function showLive() {
   statusText.textContent = 'LIVE';
   offlineMsg.classList.add('hidden'); playerArea.classList.remove('hidden');
   startTitlePulse();
-  if (typeof ToastManager !== 'undefined') ToastManager.live('Broadcast is live!');
+  // Toast only on a real offline→live transition. showLive() runs on every status frame (join,
+  // reaction, chat-toggle…), so an unconditional toast here would spam once per frame.
+  if (_lastLiveToast !== 'live') {
+    if (typeof ToastManager !== 'undefined') ToastManager.live('Broadcast is live!');
+    _lastLiveToast = 'live';
+  }
 }
 function showOffline() {
   dot.classList.remove('live'); dot.classList.add('connected');
   statusText.textContent = 'No broadcast right now';
   offlineMsg.classList.remove('hidden'); stopTimer();
   stopTitlePulse();
-  if (typeof ToastManager !== 'undefined') ToastManager.info('Broadcast ended');
+  if (_lastLiveToast !== 'offline') {
+    if (typeof ToastManager !== 'undefined') ToastManager.info('Broadcast ended');
+    _lastLiveToast = 'offline';
+  }
 }
 
 // ===== Pulsing tab title =====
@@ -548,6 +590,7 @@ window.addEventListener('beforeunload', stopTitlePulse);
 function cleanupPlayback() {
   queue = [];
   if (mediaSource?.readyState === 'open') { try { mediaSource.endOfStream(); } catch {} }
+  if (_mseUrl) { try { URL.revokeObjectURL(_mseUrl); } catch {} _mseUrl = null; }
   sourceBuffer = null; mediaSource = null;
 }
 

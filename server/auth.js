@@ -1,7 +1,32 @@
 const crypto = require('crypto');
 const db = require('./db');
-const { COOKIE_NAME, SESSION_SECRET, SESSION_MAX_AGE } = require('./config');
+const { COOKIE_NAME, SESSION_SECRET, SESSION_MAX_AGE, TOTP_ENC_KEY } = require('./config');
 const cookieSignature = require('cookie-signature');
+
+// TOTP secret encryption at rest (AES-256-GCM). The key is a 32-byte hex string from env.
+// Stored format: "enc:v1:<iv hex>:<tag hex>:<ciphertext hex>". decrypt is format-detecting so
+// a legacy plaintext base32 secret (which never contains ':') passes straight through — the app
+// keeps working before AND after the one-time migration script encrypts existing rows.
+const _totpKey = /^[0-9a-fA-F]{64}$/.test(TOTP_ENC_KEY) ? Buffer.from(TOTP_ENC_KEY, 'hex') : null;
+if (!_totpKey && process.env.NODE_ENV === 'production') {
+  console.error('[WARN] TOTP_ENC_KEY not set (or not 64 hex chars) — TOTP secrets will be stored UNENCRYPTED. Set it and run scripts/encrypt-totp-secrets.js.');
+}
+function encryptTotpSecret(plain) {
+  if (!_totpKey || plain == null) return plain; // no key configured → store as-is (dev)
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', _totpKey, iv);
+  const ct = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:v1:${iv.toString('hex')}:${tag.toString('hex')}:${ct.toString('hex')}`;
+}
+function decryptTotpSecret(stored) {
+  if (typeof stored !== 'string' || !stored.startsWith('enc:v1:')) return stored; // legacy plaintext / null
+  if (!_totpKey) throw new Error('TOTP_ENC_KEY missing but an encrypted secret was found');
+  const [, , ivH, tagH, ctH] = stored.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', _totpKey, Buffer.from(ivH, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagH, 'hex'));
+  return Buffer.concat([decipher.update(Buffer.from(ctH, 'hex')), decipher.final()]).toString('utf8');
+}
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -10,10 +35,35 @@ function hashPassword(password) {
 }
 
 function verifyPassword(password, stored) {
-  const [salt, hash] = stored.split(':');
-  const check = crypto.scryptSync(password, salt, 64).toString('hex');
+  // Guard against malformed / legacy-plaintext stored values (no ':' separator): return
+  // a clean false instead of throwing. A throw here would crash callers in the WS join
+  // path (no try/catch around the message handler) — an unauthenticated DoS.
+  const parts = String(stored == null ? '' : stored).split(':');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return false;
+  const [salt, hash] = parts;
+  let check;
+  try { check = crypto.scryptSync(password, salt, 64).toString('hex'); } catch { return false; }
   if (hash.length !== check.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex'));
+  try { return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex')); } catch { return false; }
+}
+
+// Async equivalent of verifyPassword — offloads the scrypt KDF to libuv's threadpool instead
+// of blocking the event loop. Used on the WebSocket room-password path, which is reachable by
+// unauthenticated clients: synchronous scryptSync there lets a flood of join attempts starve
+// the whole process. Same malformed-input guards as the sync version (never throws).
+function verifyPasswordAsync(password, stored) {
+  return new Promise((resolve) => {
+    const parts = String(stored == null ? '' : stored).split(':');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return resolve(false);
+    const [salt, hash] = parts;
+    crypto.scrypt(password, salt, 64, (err, derived) => {
+      if (err) return resolve(false);
+      try {
+        const hb = Buffer.from(hash, 'hex');
+        resolve(hb.length === derived.length && crypto.timingSafeEqual(hb, derived));
+      } catch { resolve(false); }
+    });
+  });
 }
 
 function createBroadcaster(username, password, displayName, orgId) {
@@ -86,8 +136,9 @@ function adminResetPassword(broadcasterId) {
   const target = db.prepare('SELECT id, username, is_superadmin FROM broadcasters WHERE id = ?').get(broadcasterId);
   if (!target) return { ok: false, error: 'Broadcaster not found' };
   if (target.is_superadmin) return { ok: false, error: 'Cannot reset password for a superadmin via this route' };
-  // 12 chars, URL-safe base64 (no +/=) so they're easy to read/type
-  const tempPassword = crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);
+  // 12 chars, URL-safe base64url (never emits +/=) so length is constant and easy to read/type.
+  // (The old replace(/[+/=]/g,'') stripped chars AFTER encoding, which could yield as few as 7.)
+  const tempPassword = crypto.randomBytes(12).toString('base64url').slice(0, 12);
   const passwordHash = hashPassword(tempPassword);
   db.prepare('UPDATE broadcasters SET password_hash = ?, must_change_password = 1 WHERE id = ?').run(passwordHash, broadcasterId);
   // Kick any active sessions — the temp password should be the ONLY way back in
@@ -224,11 +275,21 @@ function getBroadcaster(id) {
 }
 
 function setTotpEnabled(broadcasterId, secret, backupCodesHashed) {
-  db.prepare('UPDATE broadcasters SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?').run(secret, JSON.stringify(backupCodesHashed), broadcasterId);
+  db.prepare('UPDATE broadcasters SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?').run(encryptTotpSecret(secret), JSON.stringify(backupCodesHashed), broadcasterId);
 }
 
 function setTotpDisabled(broadcasterId) {
-  db.prepare('UPDATE broadcasters SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL WHERE id = ?').run(broadcasterId);
+  db.prepare('UPDATE broadcasters SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL, totp_last_step = NULL WHERE id = ?').run(broadcasterId);
+}
+
+// Atomically record the TOTP time-step just accepted. Returns true only if this step is
+// newer than the last one recorded — so a code can't be replayed within its ~90s window
+// (RFC 6238 §5.2). The single conditional UPDATE is race-safe against concurrent submits.
+function claimTotpStep(broadcasterId, step) {
+  const r = db.prepare(
+    'UPDATE broadcasters SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)'
+  ).run(step, broadcasterId, step);
+  return r.changes === 1;
 }
 
 function consumeBackupCode(broadcasterId, plainCode) {
@@ -317,6 +378,20 @@ function broadcasterMiddleware(req, res, next) {
   next();
 }
 
+// Mandatory-2FA grace: an individual broadcaster must enable TOTP within TWO_FA_GRACE_DAYS
+// of first login. Superadmins and shared accounts are exempt (shared accounts can't enroll).
+// Single source of truth — the HTTP middleware (enforce2faGracePeriod) and the WS broadcast
+// gate both call this so the two paths can never drift. `b` uses the req.broadcaster shape
+// (camelCase totpEnabled/firstLoginAt/accountType/isSuperadmin), which authenticateWs also emits.
+const TWO_FA_GRACE_DAYS = 7;
+function is2faGraceExpired(b) {
+  if (!b || b.isSuperadmin || b.accountType === 'shared' || b.totpEnabled) return false;
+  if (!b.firstLoginAt) return false;
+  // firstLoginAt is SQLite datetime('now') (UTC, no tz marker) — append 'Z' so it parses as UTC.
+  const days = (Date.now() - new Date(b.firstLoginAt + 'Z').getTime()) / (24 * 60 * 60 * 1000);
+  return days >= TWO_FA_GRACE_DAYS;
+}
+
 function authenticateWs(req) {
   const cookies = {};
   (req.headers.cookie || '').split(';').forEach(c => {
@@ -324,7 +399,10 @@ function authenticateWs(req) {
     if (idx < 1) return;
     const k = c.slice(0, idx).trim();
     const v = c.slice(idx + 1).trim();
-    if (k && v) cookies[k] = decodeURIComponent(v);
+    // Guard decodeURIComponent: a malformed percent-sequence (e.g. "%E0%A4%A") throws a
+    // URIError. authenticateWs runs in the wss 'connection' handler with no try/catch, so an
+    // unguarded throw would crash the whole process — an unauthenticated WS DoS.
+    if (k && v) { try { cookies[k] = decodeURIComponent(v); } catch { /* skip malformed cookie value */ } }
   });
   const raw = cookies[COOKIE_NAME];
   if (!raw) return null;
@@ -332,6 +410,11 @@ function authenticateWs(req) {
   if (unsigned === false) return null;
   const session = getSession(unsigned);
   if (!session) return null;
+  // Mirror broadcasterMiddleware: pull the extended row so the WS path can enforce the same
+  // gates the HTTP middleware does — forced password rotation AND the mandatory-2FA grace.
+  // (The session row alone carries neither flag.)
+  const b = db.prepare('SELECT must_change_password, totp_enabled, first_login_at, account_type FROM broadcasters WHERE id = ?').get(session.broadcaster_id);
+  if (b && b.must_change_password) return null;
   return {
     id: session.broadcaster_id,
     username: session.username,
@@ -340,6 +423,9 @@ function authenticateWs(req) {
     orgId: session.org_id,
     orgSlug: session.org_slug,
     isSuperadmin: !!session.is_superadmin,
+    totpEnabled: !!(b && b.totp_enabled),
+    firstLoginAt: (b && b.first_login_at) || null,
+    accountType: (b && b.account_type) || 'individual',
   };
 }
 
@@ -371,8 +457,10 @@ module.exports = {
   createBroadcaster, loginBroadcaster, broadcasterMiddleware, authenticateWs,
   changePassword, updateDisplayName, deleteSession, parseCookie, getSession,
   loginBroadcasterStage1, consumePendingTotpLogin, getBroadcaster,
-  setTotpEnabled, setTotpDisabled, consumeBackupCode, createSession,
-  hashPassword, verifyPassword,
+  setTotpEnabled, setTotpDisabled, claimTotpStep, consumeBackupCode, createSession,
+  encryptTotpSecret, decryptTotpSecret,
+  hashPassword, verifyPassword, verifyPasswordAsync,
+  is2faGraceExpired, TWO_FA_GRACE_DAYS,
   createIndividualBroadcaster, getBroadcastersByOrg,
   transferOrgLeadership, forceSetOrgLeader, deleteBroadcaster,
   adminResetPassword, adminDisableTotp,

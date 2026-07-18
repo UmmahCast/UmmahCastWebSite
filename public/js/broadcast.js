@@ -371,7 +371,13 @@ function toggleSchedule() {
 window.toggleSchedule = toggleSchedule;
 
 async function loadCategories() {
-  const cats = await (await fetch(`/api/orgs/${orgSlug}/categories`)).json();
+  let cats;
+  try {
+    const res = await fetch(`/api/orgs/${orgSlug}/categories`);
+    if (!res.ok) return;
+    cats = await res.json();
+  } catch { return; }
+  if (!Array.isArray(cats)) return;
   const select = document.getElementById('sched-category');
   select.innerHTML = '';
   cats.forEach(c => {
@@ -408,7 +414,13 @@ async function deleteCat(id) {
 window.deleteCat = deleteCat;
 
 async function loadSchedule() {
-  const scheds = await (await fetch(`/api/orgs/${orgSlug}/rooms/${room}/schedule`)).json();
+  let scheds;
+  try {
+    const res = await fetch(`/api/orgs/${orgSlug}/rooms/${room}/schedule`);
+    if (!res.ok) return;
+    scheds = await res.json();
+  } catch { return; }
+  if (!Array.isArray(scheds)) return;
   const countEl = document.getElementById('sched-count');
   countEl.textContent = scheds.length > 0 ? `(${scheds.length})` : '';
   const list = document.getElementById('sched-list');

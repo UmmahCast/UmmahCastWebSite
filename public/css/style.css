@@ -48,8 +48,9 @@
   --accent-glow: rgba(45, 138, 78, 0.2);
   --gold: #c9a84c;
   --green: #22c55e;
-  --live: #d93b3b;
-  --live-glow: rgba(217, 59, 59, 0.3);
+  /* Live = light, not a broadcast-red pill. A warm amber-gold that reads as an ember/lamp. */
+  --live: #dca43e;
+  --live-glow: rgba(220, 164, 62, 0.38);
   --danger: #d93b3b;
   --danger-soft: rgba(217, 59, 59, 0.1);
   --danger-border: rgba(217, 59, 59, 0.3);
@@ -74,8 +75,9 @@
   /* Muqarnas pattern colors (semi-transparent currentColor mask) */
   --pattern-color: rgba(201, 168, 76, 0.18);
 
-  /* Body-level ambient pattern — yellowish/gold in dark mode per Brandon's request */
-  --pattern-bg-color: rgba(201, 168, 76, 0.08);
+  /* Body-level ambient pattern — a whisper. The girih is spent as frame/threshold (hero, dividers)
+     at --pattern-color, not smeared as fog across every surface. */
+  --pattern-bg-color: rgba(201, 168, 76, 0.03);
 }
 
 /* Light theme — warm sandstone, not cold grey */
@@ -108,7 +110,7 @@
   --pattern-color: rgba(15, 69, 48, 0.14);
 
   /* Body-level ambient pattern — subtle green in light mode */
-  --pattern-bg-color: rgba(15, 69, 48, 0.04);
+  --pattern-bg-color: rgba(15, 69, 48, 0.02);
 }
 
 /* ==================== Muqarnas pattern utilities ==================== */
@@ -120,12 +122,12 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat;
           mask-repeat: repeat;
-  -webkit-mask-size: 64px 48px;
-          mask-size: 64px 48px;
+  -webkit-mask-size: 76px 76px;
+          mask-size: 76px 76px;
   background-color: var(--pattern-color);
 }
 .muqarnas-bg > * { position: relative; z-index: 1; }
@@ -137,13 +139,13 @@
   align-self: center;
   height: 48px;
   margin: 2rem auto;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat-x;
           mask-repeat: repeat-x;
-  /* Natural SVG aspect (64x48) — anything else distorts and gaps appear between tiles */
-  -webkit-mask-size: 64px 48px;
-          mask-size: 64px 48px;
+  /* Square girih tile — keep mask-size square so stars never clip mid-motif */
+  -webkit-mask-size: 48px 48px;
+          mask-size: 48px 48px;
   -webkit-mask-position: center;
           mask-position: center;
   background-color: var(--pattern-color);
@@ -156,12 +158,12 @@
   max-width: 640px;
   height: 24px;
   margin: 0 auto 1.25rem;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat-x;
           mask-repeat: repeat-x;
-  -webkit-mask-size: 64px 24px;
-          mask-size: 64px 24px;
+  -webkit-mask-size: 24px 24px;
+          mask-size: 24px 24px;
   -webkit-mask-position: center;
           mask-position: center;
   background-color: var(--pattern-color);
@@ -193,6 +195,26 @@ body {
   overscroll-behavior: none;
   line-height: 1.5;
   font-size: 0.9rem;
+  /* Candlelit ground — a fixed-size warm lamp-glow from above the hero so the dark reads
+     dimensional and lit, not one flat hex. Pixel-sized so it stays near the top on tall pages. */
+  background:
+    radial-gradient(1100px 460px at 50% -150px, color-mix(in oklab, var(--gold) 10%, transparent), transparent 72%),
+    var(--bg);
+}
+html[data-theme="light"] body {
+  background:
+    radial-gradient(1100px 460px at 50% -150px, color-mix(in oklab, var(--accent) 7%, transparent), transparent 72%),
+    var(--bg);
+}
+
+/* Gold-leaf: display headings clipped in a metallic gradient so the type catches light like
+   gilded tile. Applied to the hero emphasis line + section titles (kept selective on purpose). */
+.gold-leaf, .hero h1 span, .section-heading {
+  background: linear-gradient(150deg, #e8c877 0%, #cba94e 40%, #9a7f36 58%, #e0bd60 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 /* Ambient muqarnas pattern that fills the viewport behind all content.
@@ -204,12 +226,12 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat;
           mask-repeat: repeat;
-  -webkit-mask-size: 64px 48px;
-          mask-size: 64px 48px;
+  -webkit-mask-size: 88px 88px;
+          mask-size: 88px 88px;
   background-color: var(--pattern-bg-color);
 }
 
@@ -260,14 +282,24 @@ button {
   border-radius: var(--radius-pill);
   padding: 0.65rem 1.5rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* Weighted press physics: slow eased release (this base), fast press-down (via :active). */
+  transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
   width: 100%;
   min-height: 44px;
 }
+/* Press INTO the surface — the tactile signal is the press, not a hover shine. */
+button:active {
+  transform: scale(0.975);
+  transition-duration: 0.09s;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.28);
+}
+@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
 
+/* Tazhib focus — a warm gold ring with a soft illuminated glow, not a flat accent outline. */
 button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--gold) 20%, transparent);
 }
 
 /* Primary — filled accent, pill */
@@ -331,19 +363,19 @@ button:focus-visible {
   background: var(--green);
 }
 
-/* LIVE badge */
+/* LIVE — one small letter-spaced word in warm gold, lit by a small ember dot. Not a red pill. */
 .badge-live {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  background: var(--live);
-  color: white;
-  font-size: 0.7rem;
+  gap: 0.35rem;
+  background: transparent;
+  color: var(--live);
+  font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  letter-spacing: 0.05em;
+  padding: 0.1rem 0;
+  border-radius: 0;
+  letter-spacing: 0.18em;
 }
 .badge-live .dot {
   width: 6px;
@@ -398,7 +430,7 @@ nav[role="navigation"] {
 /* Links */
 a { color: var(--accent); text-decoration: none; text-underline-offset: 2px; }
 a:hover { text-decoration: underline; }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 2px; box-shadow: 0 0 0 4px color-mix(in oklab, var(--gold) 18%, transparent); }
 
 /* Make text links clearly clickable */
 .link, a:not([class]) {
@@ -991,128 +1023,23 @@ dialog.follow-dialog[open] { animation: dialog-pop 0.18s ease-out; }
 }
 .uc-footer-bottom .uc-footer-sep { margin: 0 0.5rem; opacity: 0.5; }
 
-/* ===== Subtle Animated Borders ("Feel Alive") ===== */
+/* ===== Live = light (retired the rainbow conic border-sweep) ===== */
 
-/* Cards: gradient border sweep on hover */
-.card,
-.live-rooms .room-card,
-.community-card,
-.tile,
-.feature-card {
-  position: relative;
-  isolation: isolate;
+/* A live room reads as a lit threshold: a warm gold wash spilling from the left edge — the
+   doorway — with a quiet gold seam. Offline cards stay a closed, muted hairline. One language
+   (warm light), not three disconnected gimmicks. */
+.card-live,
+.live-rooms .room-card.live,
+.community-card.live {
+  background: linear-gradient(90deg, var(--live-glow), transparent 48%), var(--surface);
 }
-.card::after,
-.live-rooms .room-card::after,
-.community-card::after,
-.tile::after,
-.feature-card::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    transparent 0deg,
-    transparent 200deg,
-    var(--sweep-color-a, var(--accent)) 250deg,
-    var(--sweep-color-b, var(--gold)) 300deg,
-    var(--sweep-color-a, var(--accent)) 350deg,
-    transparent 360deg
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-.card:hover::after,
-.live-rooms .room-card:hover::after,
-.community-card:hover::after,
-.tile:hover::after,
-.feature-card:hover::after {
-  opacity: 0.7;
-  /* Duration, direction, and starting-phase (via negative delay) are randomized per-hover via card-shimmer.js */
-  animation: border-sweep var(--sweep-duration, 4s) linear infinite;
-  animation-direction: var(--sweep-direction, normal);
-  animation-delay: var(--sweep-delay, 0s);
+.live-rooms .room-card.live,
+.community-card.live {
+  border-left: 2px solid var(--live);
 }
 
-/* Permanently animated border for live cards */
-.card-live::after,
-.community-card.live::after {
-  opacity: 0.85 !important;
-  animation: border-sweep 6s linear infinite !important;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    transparent 0deg,
-    transparent 220deg,
-    var(--live) 270deg,
-    var(--gold) 320deg,
-    var(--live) 360deg
-  ) !important;
-}
-
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-@keyframes border-sweep {
-  to { --angle: 360deg; }
-}
-/* Fallback for browsers without @property — gradient is static, just visible on hover */
-@supports not (background: conic-gradient(from var(--angle, 0deg), red, blue)) {
-  .card:hover::after,
-  .live-rooms .room-card:hover::after,
-  .community-card:hover::after,
-  .tile:hover::after,
-  .feature-card:hover::after {
-    opacity: 1;
-    animation: none;
-    background: linear-gradient(135deg, var(--accent), var(--gold), var(--accent));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .card::after,
-  .live-rooms .room-card::after,
-  .community-card::after,
-  .tile::after,
-  .feature-card::after,
-  .card-live::after,
-  .community-card.live::after { animation: none !important; }
-}
-
-/* Primary buttons: subtle shimmer on hover */
-.btn-primary,
-.btn-live {
-  position: relative;
-  overflow: hidden;
-}
-.btn-primary::before,
-.btn-live::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.18) 50%,
-    transparent 70%
-  );
-  background-size: 250% 100%;
-  background-position: 100% 0;
-  transition: background-position 0.6s ease;
-  pointer-events: none;
-}
-.btn-primary:hover::before,
-.btn-live:hover::before {
-  background-position: -100% 0;
-}
+/* (Removed the white diagonal hover-shine — the tactile signal is the weighted press, not a
+   sweeping gloss. See button:active.) */
 @media (prefers-reduced-motion: reduce) {
   .btn-primary::before,
   .btn-live::before { display: none; }
@@ -1177,8 +1104,8 @@ dialog.follow-dialog[open] { animation: dialog-pop 0.18s ease-out; }
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat;
           mask-repeat: repeat;
   -webkit-mask-size: 64px 48px;
@@ -1447,13 +1374,14 @@ dialog.follow-dialog[open] { animation: dialog-pop 0.18s ease-out; }
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  -webkit-mask-image: url('/img/pattern-muqarnas.svg');
-          mask-image: url('/img/pattern-muqarnas.svg');
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat;
           mask-repeat: repeat;
-  -webkit-mask-size: 64px 48px;
-          mask-size: 64px 48px;
-  background-color: var(--pattern-color);
+  -webkit-mask-size: 76px 76px;
+          mask-size: 76px 76px;
+  /* A whisper, not a wall of stars behind the mosque name — the geometry frames, it doesn't fog. */
+  background-color: var(--pattern-bg-color);
 }
 .org-hero > * { position: relative; z-index: 1; }
 .org-hero[hidden] { display: none; }

@@ -6,9 +6,10 @@
   <title>UmmahCast — Set Up Your Broadcaster Account</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <link rel="stylesheet" href="/css/style.css?v=20">
+  <link rel="stylesheet" href="/css/style.css?v=22">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <style>
     .setup { max-width: 480px; width: 100%; }
     .form-field { margin-bottom: 1rem; }
@@ -47,7 +48,7 @@
         <span id="inviter-line"></span>
       </div>
 
-      <form id="setup-form" onsubmit="return submitSetup(event)">
+      <form id="setup-form" data-action-submit="submitSetup">
         <div class="form-field">
           <label for="setup-username">Username</label>
           <input type="text" id="setup-username" required maxlength="50" pattern="[a-zA-Z0-9_-]+" autocomplete="username">

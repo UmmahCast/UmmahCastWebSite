@@ -25,11 +25,16 @@
   <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
   <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
     <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
-  <link rel="stylesheet" href="/css/style.css?v=20">
+  <link rel="stylesheet" href="/css/style.css?v=22">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <script src="/js/tos-gate.js" defer></script>
   <script src="/js/password-gate.js" defer></script>
+  <script>
+    function openLogoPicker(){ document.getElementById("logo-file-input").click(); }
+    function totpCancelDisablePanel(){ document.getElementById("totp-disable").classList.add("hidden"); }
+  </script>
   <style>
     .settings-grid { display:flex; flex-direction:column; gap:1rem; max-width:600px; width:100%; }
     .section-title { font-size:0.85rem; font-weight:600; margin-bottom:0.5rem; }
@@ -93,7 +98,7 @@
         <label for="display-name">Display Name</label>
         <div style="display:flex; gap:0.5rem;">
           <input type="text" id="display-name" maxlength="100">
-          <button class="btn-stop inline-btn" onclick="saveName()">Save</button>
+          <button class="btn-stop inline-btn" data-action="saveName">Save</button>
         </div>
         <div id="name-msg" class="success-msg" style="display:none;"></div>
       </div>
@@ -101,7 +106,7 @@
         <label>Change Password</label>
         <input type="password" id="old-password" placeholder="Current password" style="margin-bottom:0.5rem;">
         <input type="password" id="new-password" placeholder="New password (min 8 chars)">
-        <div style="margin-top:0.5rem;"><button class="btn-stop inline-btn" onclick="changePass()">Update Password</button></div>
+        <div style="margin-top:0.5rem;"><button class="btn-stop inline-btn" data-action="changePass">Update Password</button></div>
         <div id="pass-msg" class="success-msg" style="display:none;"></div>
       </div>
     </div>
@@ -117,7 +122,7 @@
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
           Add an extra layer of security. After signing in with your password, you'll enter a 6-digit code from your authenticator app (Google Authenticator, Authy, 1Password, etc.).
         </p>
-        <button class="btn-primary inline-btn" onclick="totpStartSetup()">Enable 2FA</button>
+        <button class="btn-primary inline-btn" data-action="totpStartSetup">Enable 2FA</button>
       </div>
 
       <!-- Setup flow -->
@@ -133,8 +138,8 @@
           <input type="text" id="totp-verify-code" inputmode="numeric" maxlength="6" pattern="\d{6}" placeholder="123456">
         </div>
         <div style="display:flex; gap:0.5rem;">
-          <button class="btn-primary inline-btn" onclick="totpConfirmEnable()">Verify & Enable</button>
-          <button class="btn-stop inline-btn" onclick="totpCancelSetup()">Cancel</button>
+          <button class="btn-primary inline-btn" data-action="totpConfirmEnable">Verify & Enable</button>
+          <button class="btn-stop inline-btn" data-action="totpCancelSetup">Cancel</button>
         </div>
         <div id="totp-setup-msg" class="error-msg" style="display:none;"></div>
       </div>
@@ -144,23 +149,23 @@
         <p style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;"><strong>Save these backup codes!</strong> Each can be used once if you lose access to your authenticator. They won't be shown again.</p>
         <pre id="totp-backup-list" style="background:var(--bg); padding:0.75rem; border-radius:var(--radius); font-family:ui-monospace,monospace; font-size:0.95rem; line-height:1.8; text-align:center;"></pre>
         <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-          <button class="btn-stop inline-btn" onclick="totpDownloadBackups()">Download as .txt</button>
-          <button class="btn-primary inline-btn" onclick="totpDoneBackups()">I've saved them</button>
+          <button class="btn-stop inline-btn" data-action="totpDownloadBackups">Download as .txt</button>
+          <button class="btn-primary inline-btn" data-action="totpDoneBackups">I've saved them</button>
         </div>
       </div>
 
       <!-- On state -->
       <div id="totp-on" class="hidden">
         <p style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;">✓ 2FA is enabled. <span id="totp-backup-count"></span></p>
-        <button class="btn-stop inline-btn" onclick="totpStartDisable()">Disable 2FA</button>
+        <button class="btn-stop inline-btn" data-action="totpStartDisable">Disable 2FA</button>
 
         <div id="totp-disable" class="hidden" style="margin-top:0.75rem; padding:0.75rem; background:var(--bg); border-radius:var(--radius);">
           <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Confirm with your password and current 2FA code:</p>
           <input type="password" id="totp-disable-pass" placeholder="Password" style="margin-bottom:0.5rem;">
           <input type="text" id="totp-disable-code" inputmode="numeric" maxlength="6" placeholder="123456" style="margin-bottom:0.5rem;">
           <div style="display:flex; gap:0.5rem;">
-            <button class="btn-stop inline-btn" onclick="totpConfirmDisable()">Disable</button>
-            <button class="btn-secondary inline-btn" onclick="document.getElementById('totp-disable').classList.add('hidden')">Cancel</button>
+            <button class="btn-stop inline-btn" data-action="totpConfirmDisable">Disable</button>
+            <button class="btn-secondary inline-btn" data-action="totpCancelDisablePanel">Cancel</button>
           </div>
           <div id="totp-disable-msg" class="error-msg" style="display:none;"></div>
         </div>
@@ -173,7 +178,7 @@
       <div id="room-list"></div>
       <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
         <input type="text" id="new-room-name" placeholder="New room name" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
-        <button class="btn-live inline-btn" onclick="createRoom()">Create</button>
+        <button class="btn-live inline-btn" data-action="createRoom">Create</button>
       </div>
       <div id="room-msg" class="error-msg" style="display:none;"></div>
     </div>
@@ -184,7 +189,7 @@
       <div id="cat-list" style="margin-bottom:0.75rem;"></div>
       <div style="display:flex; gap:0.5rem;">
         <input type="text" id="new-cat-name" placeholder="New category" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
-        <button class="btn-stop inline-btn" onclick="addCat()">Add</button>
+        <button class="btn-stop inline-btn" data-action="addCat">Add</button>
       </div>
     </div>
 
@@ -209,11 +214,11 @@
 
       <div id="branding-pending-banner" class="totp-banner" style="display:none;">
         <strong>Pending review.</strong> Your new logo is queued. The current logo stays in place until a moderator approves the new one.
-        <button type="button" class="btn-stop inline-btn" style="margin-left:0.5rem;" onclick="cancelPendingLogo()">Cancel</button>
+        <button type="button" class="btn-stop inline-btn" style="margin-left:0.5rem;" data-action="cancelPendingLogo">Cancel</button>
       </div>
 
       <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none;">
-      <button type="button" class="btn-primary inline-btn" onclick="document.getElementById('logo-file-input').click()">📷 Upload New Logo</button>
+      <button type="button" class="btn-primary inline-btn" data-action="openLogoPicker">📷 Upload New Logo</button>
       <div id="branding-msg" class="success-msg" style="display:none;"></div>
     </div>
 
@@ -228,7 +233,7 @@
       <div id="org-list" style="margin-bottom:0.75rem;"></div>
       <div class="admin-action-row">
         <input type="text" id="new-org-name" placeholder="Organization name" style="flex:1; padding:0.4rem 0.6rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:0.85rem; font-family:inherit;">
-        <button class="btn-live inline-btn" onclick="createOrg()">+ Create Org</button>
+        <button class="btn-live inline-btn" data-action="createOrg">+ Create Org</button>
       </div>
       <div id="org-msg" class="error-msg" style="display:none;"></div>
     </div>
@@ -266,7 +271,7 @@
             </label>
           </div>
         </div>
-        <button class="btn-primary inline-btn" onclick="sendInvite()">📨 Send Invite</button>
+        <button class="btn-primary inline-btn" data-action="sendInvite">📨 Send Invite</button>
         <div id="invite-msg" class="success-msg" style="display:none;"></div>
       </div>
     </div>
@@ -355,7 +360,7 @@
         _roomsBySlug.set(r.slug, r);
         const div = document.createElement('div'); div.className = 'room-item';
         // Slugs are constrained to [a-z0-9-]+ server-side, so safe in attribute context.
-        const del = r.slug !== 'main' ? `<button class="btn-stop inline-btn" onclick="deleteRoom('${esc(r.slug)}')" style="color:var(--text-muted);">✕</button>` : '<span style="font-size:0.7rem;color:var(--text-muted);">Default</span>';
+        const del = r.slug !== 'main' ? `<button class="btn-stop inline-btn" data-action="deleteRoom" data-arg="${esc(r.slug)}" style="color:var(--text-muted);">✕</button>` : '<span style="font-size:0.7rem;color:var(--text-muted);">Default</span>';
         div.innerHTML = `<span><strong>${esc(r.name)}</strong> <span style="font-size:0.75rem;color:var(--text-muted);">/${esc(r.slug)}</span>${r.hasPassword ? ' 🔒' : ''}</span>${del}`;
         list.appendChild(div);
       });
@@ -387,7 +392,7 @@
       list.innerHTML = '';
       cats.forEach(c => {
         const chip = document.createElement('span'); chip.className = 'cat-chip';
-        chip.innerHTML = `${esc(c.name)} <span class="del" onclick="deleteCat(${c.id})">✕</span>`;
+        chip.innerHTML = `${esc(c.name)} <span class="del" data-action="deleteCat" data-arg-num="${c.id}">✕</span>`;
         list.appendChild(chip);
       });
     }
@@ -435,16 +440,16 @@
               <span style="font-size:0.7rem;color:var(--warning-text,#b88a08);">⏳ Pending deletion since ${esc(since)}</span>
             </span>
             <span style="display:flex;gap:0.35rem;">
-              <button class="btn-stop inline-btn" onclick="cancelOrgDeletion('${o.slug}')" title="Abort the pending deletion">↶ Cancel</button>
-              <button class="btn-stop inline-btn" onclick="confirmPermanentDelete('${o.slug}')" style="color:var(--danger);" title="Permanently delete now">✕ Delete now</button>
+              <button class="btn-stop inline-btn" data-action="cancelOrgDeletion" data-arg="${o.slug}" title="Abort the pending deletion">↶ Cancel</button>
+              <button class="btn-stop inline-btn" data-action="confirmPermanentDelete" data-arg="${o.slug}" style="color:var(--danger);" title="Permanently delete now">✕ Delete now</button>
             </span>`;
           list.appendChild(div);
           return;
         }
-        const editBtn = `<button class="btn-stop inline-btn" onclick="editOrgName('${o.slug}')" style="color:var(--text-muted);" title="Rename">✏️</button>`;
-        const brandBtn = `<button class="btn-stop inline-btn" onclick="toggleOrgBrandPanel('${o.slug}')" style="color:var(--text-muted);" title="Edit branding">🎨</button>`;
+        const editBtn = `<button class="btn-stop inline-btn" data-action="editOrgName" data-arg="${o.slug}" style="color:var(--text-muted);" title="Rename">✏️</button>`;
+        const brandBtn = `<button class="btn-stop inline-btn" data-action="toggleOrgBrandPanel" data-arg="${o.slug}" style="color:var(--text-muted);" title="Edit branding">🎨</button>`;
         const delBtn = o.slug !== 'default'
-          ? `<button class="btn-stop inline-btn" onclick="deleteOrg('${o.slug}')" style="color:var(--text-muted);" title="Delete">✕</button>`
+          ? `<button class="btn-stop inline-btn" data-action="deleteOrg" data-arg="${o.slug}" style="color:var(--text-muted);" title="Delete">✕</button>`
           : '<span style="font-size:0.7rem;color:var(--text-muted);">Default</span>';
         const metaParts = [];
         if (o.leaderName) metaParts.push(`led by ${esc(o.leaderName)}`);
@@ -478,25 +483,31 @@
           <label>Accent color</label>
           <div style="display:flex;gap:0.5rem;align-items:center;">
             <input type="color" id="brand-accent-${esc(o.slug)}" value="${esc(o.accentColor || '#2d8a4e')}" style="width:48px;height:32px;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;">
-            <button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','accentColor')">Save color</button>
+            <button class="btn-stop inline-btn" data-action="saveOrgBrand" data-arg="${esc(o.slug)}" data-arg2="accentColor">Save color</button>
           </div>
         </div>
         <div class="field">
           <label>Short description</label>
           <textarea id="brand-desc-${esc(o.slug)}" maxlength="1000" rows="2" style="width:100%;padding:0.5rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.85rem;font-family:inherit;resize:vertical;">${esc(o.description || '')}</textarea>
-          <div style="margin-top:0.35rem;"><button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','description')">Save description</button></div>
+          <div style="margin-top:0.35rem;"><button class="btn-stop inline-btn" data-action="saveOrgBrand" data-arg="${esc(o.slug)}" data-arg2="description">Save description</button></div>
         </div>
         <div class="field">
           <label>Telegram chat ID (for org-specific notifications)</label>
           <div style="display:flex;gap:0.5rem;">
             <input type="text" id="brand-tg-${esc(o.slug)}" value="${esc(o.telegramChatId || '')}" maxlength="50" placeholder="-1001234567890" style="flex:1;padding:0.4rem 0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.85rem;font-family:ui-monospace,monospace;">
-            <button class="btn-stop inline-btn" onclick="saveOrgBrand('${esc(o.slug)}','telegramChatId')">Save</button>
+            <button class="btn-stop inline-btn" data-action="saveOrgBrand" data-arg="${esc(o.slug)}" data-arg2="telegramChatId">Save</button>
           </div>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+            <input type="checkbox" id="brand-captions-${esc(o.slug)}" ${o.captionsEnabled ? 'checked' : ''} data-action-change="saveOrgBrand" data-arg="${esc(o.slug)}" data-arg2="captionsEnabled" style="width:auto;cursor:pointer;">
+            <span>Caption published recordings (auto English transcript)</span>
+          </label>
         </div>
         <div class="field">
           <label>Upload logo (queues for review on /admin/photos)</label>
           <input type="file" accept="image/png,image/jpeg,image/webp" id="brand-logo-${esc(o.slug)}" style="font-size:0.8rem;">
-          <button class="btn-stop inline-btn" onclick="uploadOrgLogo('${esc(o.slug)}')" style="margin-top:0.35rem;">📷 Upload logo</button>
+          <button class="btn-stop inline-btn" data-action="uploadOrgLogo" data-arg="${esc(o.slug)}" style="margin-top:0.35rem;">📷 Upload logo</button>
         </div>
         <div id="brand-msg-${esc(o.slug)}" style="font-size:0.78rem;min-height:1em;margin-top:0.4rem;"></div>
       `;
@@ -517,6 +528,7 @@
       if (field === 'accentColor') payload.accentColor = document.getElementById(`brand-accent-${slug}`).value;
       else if (field === 'description') payload.description = document.getElementById(`brand-desc-${slug}`).value;
       else if (field === 'telegramChatId') payload.telegramChatId = document.getElementById(`brand-tg-${slug}`).value.trim();
+      else if (field === 'captionsEnabled') payload.captionsEnabled = document.getElementById(`brand-captions-${slug}`).checked;
       const res = await fetch(`/api/admin/orgs/${encodeURIComponent(slug)}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -586,8 +598,8 @@
       // Replace edit/delete buttons with save/cancel
       const actions = row.querySelector('span:last-child');
       actions.innerHTML = `
-        <button class="btn-live inline-btn" onclick="saveOrgName('${esc(slug)}')">Save</button>
-        <button class="btn-stop inline-btn" onclick="loadOrgs()">Cancel</button>
+        <button class="btn-live inline-btn" data-action="saveOrgName" data-arg="${esc(slug)}">Save</button>
+        <button class="btn-stop inline-btn" data-action="loadOrgs">Cancel</button>
       `;
 
       input.addEventListener('keydown', (e) => {
@@ -735,23 +747,23 @@
         const isSelf = b.id === me.id;
         // Transfer Leader: only the current leader sees this on OTHER non-shared broadcasters
         if (iAmLeader && !isSelf && !b.is_org_leader && b.account_type !== 'shared' && !b.is_superadmin) {
-          actions.push(`<button class="btn-stop inline-btn" onclick="transferLeader(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Make this person the org leader">↪️ Transfer</button>`);
+          actions.push(`<button class="btn-stop inline-btn" data-action="transferLeader" data-arg-num="${b.id}" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Make this person the org leader">↪️ Transfer</button>`);
         }
         // Force-Set Leader: superadmin only — recovery when current leader is locked out
         if (iAmAdmin && !b.is_org_leader && b.account_type !== 'shared' && !b.is_superadmin) {
-          actions.push(`<button class="btn-stop inline-btn" onclick="forceSetLeader(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Force-set as org leader (superadmin recovery)">👑 Make Leader</button>`);
+          actions.push(`<button class="btn-stop inline-btn" data-action="forceSetLeader" data-arg-num="${b.id}" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Force-set as org leader (superadmin recovery)">👑 Make Leader</button>`);
         }
         // Reset Password: superadmin only — emergency lockout recovery
         if (iAmAdmin && !isSelf && !b.is_superadmin) {
-          actions.push(`<button class="btn-stop inline-btn" onclick="adminResetPassword(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Reset broadcaster's password (emergency)">🔑 Reset Pw</button>`);
+          actions.push(`<button class="btn-stop inline-btn" data-action="adminResetPassword" data-arg-num="${b.id}" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Reset broadcaster's password (emergency)">🔑 Reset Pw</button>`);
         }
         // Disable 2FA: superadmin only, only when 2FA is currently enabled — emergency lockout recovery
         if (iAmAdmin && !isSelf && b.totp_enabled && !b.is_superadmin) {
-          actions.push(`<button class="btn-stop inline-btn" onclick="adminDisable2fa(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Disable 2FA for this broadcaster (emergency)">🔓 Disable 2FA</button>`);
+          actions.push(`<button class="btn-stop inline-btn" data-action="adminDisable2fa" data-arg-num="${b.id}" style="font-size:0.7rem; padding:0.25rem 0.55rem;" title="Disable 2FA for this broadcaster (emergency)">🔓 Disable 2FA</button>`);
         }
         // Delete: leader/admin can remove others (not self, not the leader without transfer first, not superadmin)
         if (canManage && !isSelf && !b.is_superadmin && !b.is_org_leader) {
-          actions.push(`<button class="btn-stop inline-btn" onclick="removeBroadcaster(${b.id})" style="font-size:0.7rem; padding:0.25rem 0.55rem; color:var(--danger);" title="Remove from org">✕</button>`);
+          actions.push(`<button class="btn-stop inline-btn" data-action="removeBroadcaster" data-arg-num="${b.id}" style="font-size:0.7rem; padding:0.25rem 0.55rem; color:var(--danger);" title="Remove from org">✕</button>`);
         }
         const actionsHtml = actions.length ? `<span style="display:flex; gap:0.3rem; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">${actions.join('')}</span>` : '';
 
@@ -944,7 +956,11 @@
     }
     window.adminDisable2fa = adminDisable2fa;
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    // Escapes < > & (via textContent) AND quotes, so the result is safe in an HTML *attribute*
+    // context too — several call sites interpolate esc() into title="…"/data-…="…". Without the
+    // quote escaping, a value containing " (e.g. a crafted org name or telegramChatId) breaks out
+    // of the attribute into markup (stored XSS).
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
     function relativeAgo(iso) {
       if (!iso) return '';

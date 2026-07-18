@@ -52,6 +52,25 @@ function incrementSent(provider) {
     ON CONFLICT(provider, date) DO UPDATE SET sent = sent + 1
   `).run(provider, todayUTC());
 }
+// Atomically reserve one send slot for today BEFORE sending; returns the new count, or null
+// if that would exceed the limit (in which case the reservation is rolled back). better-sqlite3
+// is synchronous, so this read-modify-write is indivisible vs other in-process senders — no two
+// concurrent sends can both grab the last slot (the check-then-increment race).
+function reserveSlot(provider, limit) {
+  const row = db.prepare(`
+    INSERT INTO smtp_daily_counters (provider, date, sent) VALUES (?, ?, 1)
+    ON CONFLICT(provider, date) DO UPDATE SET sent = sent + 1
+    RETURNING sent
+  `).get(provider, todayUTC());
+  if (limit && row.sent > limit) {
+    db.prepare('UPDATE smtp_daily_counters SET sent = sent - 1 WHERE provider = ? AND date = ?').run(provider, todayUTC());
+    return null;
+  }
+  return row.sent;
+}
+function releaseSlot(provider) {
+  db.prepare('UPDATE smtp_daily_counters SET sent = sent - 1 WHERE provider = ? AND date = ?').run(provider, todayUTC());
+}
 
 // Public: get today's send counts for admin/visibility
 function getDailyStats() {
@@ -70,28 +89,28 @@ async function sendEmail(to, subject, html, text) {
   if (transports.length === 0) return { ok: false, error: 'No SMTP providers configured' };
 
   for (const t of transports) {
-    // Proactive skip if we know this provider is exhausted today
+    // Atomically reserve a slot up front so a concurrent burst can't overshoot the provider's
+    // daily cap (which, for free transactional tiers, gets the account throttled/suspended).
+    let reserved = null;
     if (t.dailyLimit) {
-      const sent = getSent(t.name);
-      if (sent >= t.dailyLimit) {
-        // Skip silently, but log occasionally
-        continue;
-      }
+      reserved = reserveSlot(t.name, t.dailyLimit);
+      if (reserved === null) continue; // genuinely exhausted today — try the next provider
     }
     try {
       const info = await t.transport.sendMail({ from: SMTP_FROM, to, subject, html, text });
-      incrementSent(t.name);
-      const sent = getSent(t.name);
+      if (reserved === null) incrementSent(t.name); // no-limit provider: still count for stats
+      const sent = reserved ?? getSent(t.name);
       const limitStr = t.dailyLimit ? ` [${sent}/${t.dailyLimit}]` : '';
       console.log(`[email] Sent via ${t.name} to ${to} (${info.messageId})${limitStr}`);
       // Alert at 90% threshold (once per day per provider)
       if (t.dailyLimit && sent >= Math.floor(t.dailyLimit * 0.9) && sent < t.dailyLimit) {
         alertOncePerDay(`smtp-90-${t.name}`, () => {
-          notifyAdmin(`SMTP provider *${t.name}* at ${sent}/${t.dailyLimit} (${Math.round(sent/t.dailyLimit*100)}%) — failover will kick in soon.`, 'warn');
+          notifyAdmin(`SMTP provider ${t.name} at ${sent}/${t.dailyLimit} (${Math.round(sent/t.dailyLimit*100)}%) — failover will kick in soon.`, 'warn');
         });
       }
       return { ok: true, provider: t.name, messageId: info.messageId };
     } catch (err) {
+      if (reserved !== null) releaseSlot(t.name); // send failed — give the reserved slot back
       console.warn(`[email] ${t.name} failed for ${to}: ${err.message}`);
     }
   }
@@ -345,8 +364,11 @@ async function notifyEmailSubscribers(roomName, orgId, roomSlug) {
       const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = require('./config');
       if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
         const https = require('https');
-        const text = `📧 *Email Subscribers Pending*\n\n${roomName} went live. ${subscribers.length} subscriber(s) would be notified but no SMTP configured.\n\n${emails}`;
-        const postData = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' });
+        // Plain text, NO parse_mode: emails/roomName are user-controlled and would otherwise
+        // allow Telegram-Markdown injection (clickable links) or break parsing — matching the
+        // hardening already applied to every send path in push.js.
+        const text = `📧 Email Subscribers Pending\n\n${roomName} went live. ${subscribers.length} subscriber(s) would be notified but no SMTP configured.\n\n${emails}`;
+        const postData = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text });
         const req = https.request({
           hostname: 'api.telegram.org',
           path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -384,16 +406,35 @@ async function notifyEmailSubscribers(roomName, orgId, roomSlug) {
       continue;
     }
 
-    tasks.push(sendLiveNotification(sub.email, roomName, orgName, orgSlug2, sub.verify_token));
+    // Push a THUNK, not a live promise — so runPool can bound how many SMTP sends are in flight
+    // at once. Firing all at once (Promise.allSettled over already-started sends) floods the SMTP
+    // providers and can trip their rate limits / bans on a large subscriber list.
+    tasks.push(() => sendLiveNotification(sub.email, roomName, orgName, orgSlug2, sub.verify_token));
   }
 
   console.log(`[email] ${roomSlug} live: sending ${tasks.length} instant, queuing ${queued} for digest`);
 
   if (tasks.length > 0) {
-    const results = await Promise.allSettled(tasks);
-    const sent = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+    const results = await runPool(tasks, 5);
+    const sent = results.filter(r => r.status === 'fulfilled' && r.value && r.value.ok).length;
     console.log(`[email] Go-live results: ${sent}/${tasks.length} sent`);
   }
+}
+
+// Run thunks with bounded concurrency, allSettled-style (never rejects). Keeps SMTP fan-out from
+// overwhelming the providers.
+async function runPool(thunks, concurrency) {
+  const results = new Array(thunks.length);
+  let next = 0;
+  async function worker() {
+    while (next < thunks.length) {
+      const i = next++;
+      try { results[i] = { status: 'fulfilled', value: await thunks[i]() }; }
+      catch (reason) { results[i] = { status: 'rejected', reason }; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, thunks.length) }, worker));
+  return results;
 }
 
 // Send digests for any subscribers whose digest hour matches now (in their timezone)
@@ -412,14 +453,18 @@ async function sendDigests() {
     if (localHour(sub) !== sub.digest_hour) continue;
 
     const items = db.prepare(`
-      SELECT room_slug, room_name, occurred_at FROM email_digest_queue
+      SELECT id, room_slug, room_name, occurred_at FROM email_digest_queue
       WHERE subscriber_id = ? ORDER BY occurred_at ASC
     `).all(sub.id);
     if (items.length === 0) continue;
+    // Only delete the exact rows we're about to send. Events queued during the (awaited,
+    // network-bound) send get a higher id and survive for the next run — otherwise a broadcast
+    // that goes live mid-send would be silently dropped.
+    const maxId = Math.max(...items.map(i => i.id));
 
     const result = await sendDigestEmail(sub.email, sub.org_name, sub.org_slug, items, sub.verify_token);
     if (result.ok) {
-      db.prepare('DELETE FROM email_digest_queue WHERE subscriber_id = ?').run(sub.id);
+      db.prepare('DELETE FROM email_digest_queue WHERE subscriber_id = ? AND id <= ?').run(sub.id, maxId);
     }
   }
 }
@@ -609,12 +654,19 @@ async function quickFollow(email, orgId, roomSlug) {
   // Reactivate if unsubscribed
   db.prepare('UPDATE email_subscribers SET unsubscribed_at = NULL WHERE id = ?').run(sub.id);
 
+  // SECURITY: never return an EXISTING subscriber's verify_token from this email-keyed,
+  // unauthenticated endpoint — that token is the bearer credential for all preference
+  // self-service, so echoing it back would let anyone who knows the email read/mutate/
+  // unsubscribe the victim's subscription. Instead, prove inbox control: email the manage
+  // (or verify) link and return no token. Responses are also made indistinguishable so the
+  // endpoint can't be used to enumerate which emails are verified subscribers of an org.
   if (!sub.verified) {
     await sendVerificationEmail(email, sub.verify_token, orgName);
-    return { ok: true, token: sub.verify_token, verified: false, message: 'Check your email to finish verifying' };
+    return { ok: true, verified: false, alreadySubscribed: true, message: 'Check your email to finish verifying' };
   }
 
-  return { ok: true, token: sub.verify_token, verified: true, message: `You're now following — notifications enabled` };
+  await emailPreferencesLink(email, orgId);
+  return { ok: true, verified: true, alreadySubscribed: true, message: "You're already subscribed — check your email for your manage link" };
 }
 
 // Get subscribed room slugs for a token (lightweight for bell state hydration)

@@ -6,9 +6,10 @@
   <title>UmmahCast — Org Applications</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <link rel="stylesheet" href="/css/style.css?v=20">
+  <link rel="stylesheet" href="/css/style.css?v=22">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <script src="/js/tos-gate.js" defer></script>
   <script src="/js/password-gate.js" defer></script>
   <style>
@@ -122,8 +123,8 @@
           ${a.invite_token && a.status === 'approved' ? `<div class="app-meta">Invite link: <a href="/setup-broadcaster/${esc(a.invite_token)}" style="color:var(--accent);" target="_blank">setup-broadcaster/${esc(a.invite_token).slice(0,16)}…</a>${a.invite_consumed_at ? ' (consumed)' : ''}</div>` : ''}
           ${a.status === 'pending' ? `
             <div class="app-actions">
-              <button class="btn-primary" onclick="approve(${a.id})">Approve</button>
-              <button class="btn-stop" onclick="decline(${a.id})">Decline</button>
+              <button class="btn-primary" data-action="approve" data-arg-num="${a.id}">Approve</button>
+              <button class="btn-stop" data-action="decline" data-arg-num="${a.id}">Decline</button>
             </div>` : ''}
         </div>
       `).join('');

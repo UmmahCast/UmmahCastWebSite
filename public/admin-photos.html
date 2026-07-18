@@ -8,9 +8,10 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="stylesheet" href="/css/style.css?v=20">
+  <link rel="stylesheet" href="/css/style.css?v=22">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <script src="/js/tos-gate.js" defer></script>
   <script src="/js/password-gate.js" defer></script>
   <style>
@@ -106,8 +107,8 @@
             <div class="info-slug">/${esc(p.slug)}</div>
             <div class="info-meta">Uploaded by <strong>${esc(uploader)}</strong> · ${esc(when)}</div>
             <div class="actions">
-              <button class="btn-primary" onclick="approve('${esc(p.slug)}')">✓ Approve</button>
-              <button class="btn-stop" onclick="reject('${esc(p.slug)}')">✕ Reject</button>
+              <button class="btn-primary" data-action="approve" data-arg="${esc(p.slug)}">✓ Approve</button>
+              <button class="btn-stop" data-action="reject" data-arg="${esc(p.slug)}">✕ Reject</button>
               <a href="/${esc(p.slug)}" target="_blank" rel="noopener" class="btn-secondary" style="display:inline-flex;align-items:center;padding:0.45rem 0.95rem;font-size:0.8rem;text-decoration:none;width:auto;min-height:auto;">View page →</a>
             </div>
           </div>

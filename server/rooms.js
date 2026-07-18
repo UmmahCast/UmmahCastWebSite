@@ -46,7 +46,7 @@ const _createOrgTx = db.transaction((slug, name) => {
 });
 function createOrg(slug, name) { return _createOrgTx(slug, name); }
 
-const ALLOWED_ORG_COLS = { name: 'name', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', telegram_chat_id: 'telegram_chat_id' };
+const ALLOWED_ORG_COLS = { name: 'name', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', telegram_chat_id: 'telegram_chat_id', captions_enabled: 'captions_enabled' };
 const ALLOWED_ROOM_COLS = { name: 'name', password: 'password', accent_color: 'accent_color', logo_url: 'logo_url', description: 'description', chat_disabled: 'chat_disabled' };
 
 function updateOrg(slug, updates) {
@@ -64,12 +64,23 @@ function updateOrg(slug, updates) {
 
 // Atomic — all related rows go together or not at all.
 const _deleteOrgRowsTx = db.transaction((orgId) => {
+  // Clear the org's self-reference to a broadcaster (pending logo uploader) first —
+  // pending_logo_uploaded_by REFERENCES broadcasters(id) with NO ACTION, so a live
+  // reference would throw FOREIGN KEY constraint when we delete broadcasters below.
+  db.prepare('UPDATE organizations SET pending_logo_url = NULL, pending_logo_uploaded_at = NULL, pending_logo_uploaded_by = NULL WHERE id = ?').run(orgId);
   db.prepare('DELETE FROM schedules WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM recordings WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM analytics WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM event_categories WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM push_subscriptions WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM email_subscribers WHERE org_id = ?').run(orgId);
+  // broadcaster_invites has a NOT NULL FK to organizations(id) AND an invited_by FK to
+  // broadcasters(id), so it must be cleared before broadcasters/organizations or the
+  // whole delete fails for any org that still has a pending/old invite.
+  db.prepare('DELETE FROM broadcaster_invites WHERE org_id = ?').run(orgId);
+  // sessions.broadcaster_id is NOT NULL REFERENCES broadcasters(id) with no cascade, so
+  // any logged-in broadcaster's session row must be cleared before deleting broadcasters.
+  db.prepare('DELETE FROM sessions WHERE broadcaster_id IN (SELECT id FROM broadcasters WHERE org_id = ?)').run(orgId);
   db.prepare('DELETE FROM rooms WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM broadcasters WHERE org_id = ?').run(orgId);
   db.prepare('DELETE FROM organizations WHERE id = ?').run(orgId);
@@ -264,11 +275,17 @@ function deriveListenerInitials(state) {
 // Rooms
 function listRooms(orgId) {
   const dbRooms = db.prepare('SELECT * FROM rooms WHERE org_id = ? ORDER BY id').all(orgId);
+  // One query for the whole org's upcoming schedules instead of one per room (N+1). Ordered by
+  // start time, so the first row seen for a room_slug is its next show.
+  const nextByRoom = new Map();
+  for (const s of db.prepare(
+    "SELECT room_slug, title, starts_at, duration_minutes FROM schedules WHERE org_id = ? AND starts_at > datetime('now') ORDER BY starts_at"
+  ).all(orgId)) {
+    if (!nextByRoom.has(s.room_slug)) nextByRoom.set(s.room_slug, s);
+  }
   return dbRooms.map(r => {
     const state = liveRooms.get(roomKey(orgId, r.slug));
-    const nextShow = db.prepare(
-      "SELECT * FROM schedules WHERE room_slug = ? AND org_id = ? AND starts_at > datetime('now') ORDER BY starts_at LIMIT 1"
-    ).get(r.slug, orgId);
+    const nextShow = nextByRoom.get(r.slug);
     return {
       id: r.id, slug: r.slug, name: r.name,
       description: r.description, accentColor: r.accent_color, logoUrl: r.logo_url,
@@ -312,10 +329,21 @@ function updateRoom(slug, orgId, updates) {
 
 function deleteRoom(slug, orgId) {
   if (slug === 'main') return false;
-  db.prepare('DELETE FROM schedules WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  db.prepare('DELETE FROM recordings WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  db.prepare('DELETE FROM analytics WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  db.prepare('DELETE FROM rooms WHERE slug = ? AND org_id = ?').run(slug, orgId);
+  // Atomic: all cross-table deletes commit together or not at all. Without the transaction a
+  // throw partway (or a crash) leaves the room half-deleted — e.g. schedules/recordings gone
+  // but the rooms row still present, or vice versa.
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM schedules WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    db.prepare('DELETE FROM recordings WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    db.prepare('DELETE FROM analytics WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    // Clear per-room email opt-ins + queued digest items for this room (org-scoped via the
+    // subscriber, since these tables key room_slug as free text with no FK to rooms). Prevents
+    // stale opt-ins silently re-attaching if the slug is later reused in the same org.
+    try { db.prepare('DELETE FROM email_subscriber_rooms WHERE room_slug = ? AND subscriber_id IN (SELECT id FROM email_subscribers WHERE org_id = ?)').run(slug, orgId); } catch {}
+    try { db.prepare('DELETE FROM email_digest_queue WHERE room_slug = ? AND org_id = ?').run(slug, orgId); } catch {}
+    db.prepare('DELETE FROM rooms WHERE slug = ? AND org_id = ?').run(slug, orgId);
+  });
+  tx();
   const key = roomKey(orgId, slug);
   if (liveRooms.has(key)) liveRooms.delete(key);
   return true;
@@ -519,10 +547,62 @@ function deleteRecording(id, orgId, isSuperadmin) {
 }
 
 function getRecordings(roomSlug, orgId, includeUnpublished) {
+  const base = `
+    SELECT r.*, t.status AS transcript_status
+    FROM recordings r
+    LEFT JOIN transcripts t ON t.recording_id = r.id AND t.lang = 'en'
+    WHERE r.room_slug = ? AND r.org_id = ? `;
   if (includeUnpublished) {
-    return db.prepare('SELECT * FROM recordings WHERE room_slug = ? AND org_id = ? ORDER BY recorded_at DESC').all(roomSlug, orgId);
+    return db.prepare(base + 'ORDER BY r.recorded_at DESC').all(roomSlug, orgId);
   }
-  return db.prepare('SELECT * FROM recordings WHERE room_slug = ? AND org_id = ? AND published = 1 ORDER BY recorded_at DESC').all(roomSlug, orgId);
+  return db.prepare(base + 'AND r.published = 1 ORDER BY r.recorded_at DESC').all(roomSlug, orgId);
+}
+
+function getRecording(id) {
+  return db.prepare('SELECT * FROM recordings WHERE id = ?').get(id);
+}
+
+// --- Transcripts (English captions for published recordings) ---
+
+// Mark a recording as queued for transcription. Idempotent via UNIQUE(recording_id, lang):
+// a re-dispatch resets an existing row to 'pending'.
+function markTranscriptPending(recordingId, orgId, roomSlug, lang = 'en') {
+  db.prepare(`
+    INSERT INTO transcripts (recording_id, org_id, room_slug, lang, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+    ON CONFLICT(recording_id, lang) DO UPDATE SET
+      status = 'pending', org_id = excluded.org_id, room_slug = excluded.room_slug,
+      updated_at = datetime('now')
+  `).run(recordingId, orgId || null, roomSlug || null, lang);
+}
+
+// Store the sidecar's result. segments is an array; stored as JSON text.
+function saveTranscript(recordingId, lang, status, fullText, segments) {
+  db.prepare(`
+    INSERT INTO transcripts (recording_id, lang, status, full_text, segments, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    ON CONFLICT(recording_id, lang) DO UPDATE SET
+      status = excluded.status, full_text = excluded.full_text,
+      segments = excluded.segments, updated_at = datetime('now')
+  `).run(recordingId, lang || 'en', status, fullText ?? null,
+         segments ? JSON.stringify(segments) : null);
+}
+
+function getTranscript(recordingId, lang = 'en') {
+  return db.prepare('SELECT * FROM transcripts WHERE recording_id = ? AND lang = ?').get(recordingId, lang);
+}
+
+// Fail transcripts stuck in 'pending' longer than maxMinutes (e.g. sidecar died
+// mid-job). Returns the number reaped.
+function reapStaleTranscripts(maxMinutes = 60) {
+  // Key off updated_at, NOT created_at: markTranscriptPending's UPSERT refreshes updated_at each
+  // time a job is (re-)dispatched but leaves created_at at the original value. Comparing created_at
+  // would instantly fail any re-dispatched transcript (retranscribe of an old recording).
+  const r = db.prepare(`
+    UPDATE transcripts SET status = 'failed', updated_at = datetime('now')
+    WHERE status = 'pending' AND updated_at < datetime('now', ?)
+  `).run(`-${maxMinutes} minutes`);
+  return r.changes;
 }
 
 // Categories
@@ -616,7 +696,8 @@ module.exports = {
   getRoomState, listRooms, getRoom, createRoom, updateRoom, deleteRoom,
   broadcastToRoom, statusPayload, listenerNamesFor,
   addSchedule, getSchedules, deleteSchedule,
-  addRecording, getRecordings, publishRecording, unpublishRecording, updateRecordingTitle, deleteRecording,
+  addRecording, getRecordings, getRecording, publishRecording, unpublishRecording, updateRecordingTitle, deleteRecording,
+  markTranscriptPending, saveTranscript, getTranscript, reapStaleTranscripts,
   getCategories, addCategory, deleteCategory,
   logAnalytics, getAnalyticsSummary,
   listOrgs, getOrg, getOrgById, createOrg, updateOrg, deleteOrg,

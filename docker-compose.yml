@@ -3,6 +3,11 @@ services:
     build: .
     container_name: ummahcast
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     expose:
       - "3000"
     volumes:
@@ -32,6 +37,13 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - SUPERADMIN_USERNAME=${SUPERADMIN_USERNAME:-superadmin}
+      # 32-byte hex key for encrypting TOTP secrets at rest (AES-256-GCM). Optional in dev.
+      - TOTP_ENC_KEY=${TOTP_ENC_KEY:-}
+      # Recording transcription (whisper sidecar) — off unless WHISPER_ENABLED=1
+      - WHISPER_ENABLED=${WHISPER_ENABLED:-0}
+      - WHISPER_URL=${WHISPER_URL:-http://whisper:8000}
+      - WHISPER_SHARED_SECRET=${WHISPER_SHARED_SECRET:-}
+      - INTERNAL_PORT=${INTERNAL_PORT:-3001}
       # SMTP chain (up to 8 providers, only configured ones are used)
       - SMTP_FROM=${SMTP_FROM:-notifications@ummahcast.com}
       - SMTP1_HOST=${SMTP1_HOST:-}
@@ -84,12 +96,70 @@ services:
       - SMTP8_DAILY_LIMIT=${SMTP8_DAILY_LIMIT:-200}
     networks:
       - ummahcast-net
+      - ummahcast-internal
+
+  # Transcription sidecar. Builds faster-whisper with the model baked in.
+  # Lives ONLY on the internal (egress-less) network; reads recordings read-only.
+  # Opt-in: only built/started when the "whisper" compose profile is active. Set
+  # COMPOSE_PROFILES=whisper (in .env) alongside WHISPER_ENABLED=1 to run it; a plain
+  # `docker compose up` without the profile skips this sidecar entirely.
+  whisper:
+    build:
+      context: ./whisper
+      # Pass the model through to the build so the baked model matches the runtime model
+      # (WHISPER_MODEL also feeds app.py at runtime; HF Hub is offline in the image).
+      args:
+        WHISPER_MODEL: ${WHISPER_MODEL:-medium}
+    container_name: ummahcast-whisper
+    profiles: ["whisper"]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "8000"
+    volumes:
+      - ummahcast-recordings:/recordings:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '3.0'
+    environment:
+      - PORT=8000
+      - WHISPER_MODEL=${WHISPER_MODEL:-medium}
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8}
+      - WHISPER_CPU_THREADS=${WHISPER_CPU_THREADS:-3}
+      - WHISPER_SHARED_SECRET=${WHISPER_SHARED_SECRET:-}
+      - APP_CALLBACK_URL=http://livewave:3001/internal/transcripts
+      - RECORDINGS_DIR=/recordings
+      - MAX_DURATION_SECONDS=${WHISPER_MAX_DURATION:-10800}
+    networks:
+      - ummahcast-internal
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: ummahcast-tunnel
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Token via env (cloudflared reads TUNNEL_TOKEN) rather than an argv flag — keeps the secret
+    # out of the process command line, where it's readable from /proc/<pid>/cmdline and `ps`.
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - ummahcast-net
     depends_on:
@@ -102,3 +172,7 @@ volumes:
 networks:
   ummahcast-net:
     driver: bridge
+  # Egress-less network shared only by the app and the whisper sidecar.
+  ummahcast-internal:
+    driver: bridge
+    internal: true

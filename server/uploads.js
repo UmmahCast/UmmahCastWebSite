@@ -21,6 +21,10 @@ const multer = require('multer');
 
 // 5 MB raw upload cap; processed PNG will be much smaller.
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+// Decoded-pixel cap (~24M px ≈ 96 MB raster). A small, highly-compressed "pixel bomb" (e.g. a
+// 30000×30000 PNG) is well under the 5 MB byte cap but would decode to ~3.6 GB and OOM the
+// 512 MB container. We reject on dimensions from the header (cheap) AND cap sharp's decoder.
+const MAX_INPUT_PIXELS = 24 * 1024 * 1024;
 // Final image dimensions — square crop to 512.
 const TARGET_SIZE = 512;
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -59,8 +63,12 @@ async function processAndStore(buffer, recordingsDir) {
   if (!meta.width || !meta.height || meta.width < 32 || meta.height < 32) {
     throw new Error('Image too small');
   }
+  // Reject pixel bombs from the header before the expensive decode below.
+  if (meta.width * meta.height > MAX_INPUT_PIXELS) {
+    throw new Error('Image dimensions too large');
+  }
 
-  const processed = await sharp(buffer, { failOn: 'error' })
+  const processed = await sharp(buffer, { failOn: 'error', limitInputPixels: MAX_INPUT_PIXELS })
     .rotate() // honor EXIF orientation BEFORE stripping it
     .resize(TARGET_SIZE, TARGET_SIZE, { fit: 'cover', position: 'centre' })
     .png({ compressionLevel: 9, palette: false })

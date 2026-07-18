@@ -25,10 +25,11 @@
   <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
   <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
     <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
-  <link rel="stylesheet" href="/css/style.css?v=20">
-  <link rel="stylesheet" href="/css/recording-player.css?v=5">
+  <link rel="stylesheet" href="/css/style.css?v=22">
+  <link rel="stylesheet" href="/css/recording-player.css?v=6">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
+  <script src="/js/actions.js" defer></script>
   <style>
     .page { display: flex; gap: 1rem; max-width: 860px; width: 100%; }
     .main-panel { flex: 1; }
@@ -72,7 +73,7 @@
         <div style="margin-bottom:0.5rem; color:var(--text-muted); font-size:0.85rem;">Room password</div>
         <input type="password" id="password-input" placeholder="Enter password"><br>
       </div>
-      <button class="btn-live" style="margin-top:0.75rem;" onclick="joinRoom()">Join</button>
+      <button class="btn-live" style="margin-top:0.75rem;" data-action="joinRoom">Join</button>
     </div>
   </div>
 
@@ -106,17 +107,17 @@
         <div class="stream-msg hidden" id="offline-msg">Stream is offline — you'll hear it when it starts</div>
 
         <div style="display:flex; justify-content:center; margin-top:0.75rem;">
-          <button id="btn-share-listen" class="btn-secondary" onclick="shareStream()" aria-label="Share stream link"
+          <button id="btn-share-listen" class="btn-secondary" data-action="shareStream" aria-label="Share stream link"
             style="width:auto; padding:0.4rem 1rem; font-size:0.85rem; border-radius:999px;">
             📤 Share
           </button>
         </div>
 
         <div class="reactions" id="reactions" role="group" aria-label="Reactions">
-          <button onclick="react('dua')" aria-label="React with dua">🤲<span class="count hidden" id="c-dua" aria-hidden="true">0</span></button>
-          <button onclick="react('mosque')" aria-label="React with mosque">🕌<span class="count hidden" id="c-mosque" aria-hidden="true">0</span></button>
-          <button onclick="react('tasbih')" aria-label="React with tasbih">📿<span class="count hidden" id="c-tasbih" aria-hidden="true">0</span></button>
-          <button onclick="react('crescent')" aria-label="React with crescent">☪️<span class="count hidden" id="c-crescent" aria-hidden="true">0</span></button>
+          <button data-action="react" data-arg="dua" aria-label="React with dua">🤲<span class="count hidden" id="c-dua" aria-hidden="true">0</span></button>
+          <button data-action="react" data-arg="mosque" aria-label="React with mosque">🕌<span class="count hidden" id="c-mosque" aria-hidden="true">0</span></button>
+          <button data-action="react" data-arg="tasbih" aria-label="React with tasbih">📿<span class="count hidden" id="c-tasbih" aria-hidden="true">0</span></button>
+          <button data-action="react" data-arg="crescent" aria-label="React with crescent">☪️<span class="count hidden" id="c-crescent" aria-hidden="true">0</span></button>
         </div>
 
         <div class="stats">
@@ -168,9 +169,9 @@
   <script src="/js/nav.js"></script>
   <script src="/js/card-shimmer.js?v=1" defer></script>
   <script src="/js/ui.js"></script>
-  <script src="/js/recording-player.js"></script>
+  <script src="/js/recording-player.js?v=2"></script>
   <script>renderNav('listen');</script>
-  <script src="/js/listen.js"></script>
+  <script src="/js/listen.js?v=3"></script>
 <script src="/js/bottom-nav.js"></script>
 <script src="/js/footer.js"></script>
 </body>
