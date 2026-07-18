@@ -1378,9 +1378,10 @@ dialog.follow-dialog[open] { animation: dialog-pop 0.18s ease-out; }
           mask-image: url('/img/pattern-girih.svg');
   -webkit-mask-repeat: repeat;
           mask-repeat: repeat;
-  -webkit-mask-size: 64px 48px;
-          mask-size: 64px 48px;
-  background-color: var(--pattern-color);
+  -webkit-mask-size: 76px 76px;
+          mask-size: 76px 76px;
+  /* A whisper, not a wall of stars behind the mosque name — the geometry frames, it doesn't fog. */
+  background-color: var(--pattern-bg-color);
 }
 .org-hero > * { position: relative; z-index: 1; }
 .org-hero[hidden] { display: none; }
