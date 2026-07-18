@@ -406,16 +406,35 @@ async function notifyEmailSubscribers(roomName, orgId, roomSlug) {
       continue;
     }
 
-    tasks.push(sendLiveNotification(sub.email, roomName, orgName, orgSlug2, sub.verify_token));
+    // Push a THUNK, not a live promise — so runPool can bound how many SMTP sends are in flight
+    // at once. Firing all at once (Promise.allSettled over already-started sends) floods the SMTP
+    // providers and can trip their rate limits / bans on a large subscriber list.
+    tasks.push(() => sendLiveNotification(sub.email, roomName, orgName, orgSlug2, sub.verify_token));
   }
 
   console.log(`[email] ${roomSlug} live: sending ${tasks.length} instant, queuing ${queued} for digest`);
 
   if (tasks.length > 0) {
-    const results = await Promise.allSettled(tasks);
-    const sent = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+    const results = await runPool(tasks, 5);
+    const sent = results.filter(r => r.status === 'fulfilled' && r.value && r.value.ok).length;
     console.log(`[email] Go-live results: ${sent}/${tasks.length} sent`);
   }
+}
+
+// Run thunks with bounded concurrency, allSettled-style (never rejects). Keeps SMTP fan-out from
+// overwhelming the providers.
+async function runPool(thunks, concurrency) {
+  const results = new Array(thunks.length);
+  let next = 0;
+  async function worker() {
+    while (next < thunks.length) {
+      const i = next++;
+      try { results[i] = { status: 'fulfilled', value: await thunks[i]() }; }
+      catch (reason) { results[i] = { status: 'rejected', reason }; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, thunks.length) }, worker));
+  return results;
 }
 
 // Send digests for any subscribers whose digest hour matches now (in their timezone)

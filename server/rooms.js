@@ -275,11 +275,17 @@ function deriveListenerInitials(state) {
 // Rooms
 function listRooms(orgId) {
   const dbRooms = db.prepare('SELECT * FROM rooms WHERE org_id = ? ORDER BY id').all(orgId);
+  // One query for the whole org's upcoming schedules instead of one per room (N+1). Ordered by
+  // start time, so the first row seen for a room_slug is its next show.
+  const nextByRoom = new Map();
+  for (const s of db.prepare(
+    "SELECT room_slug, title, starts_at, duration_minutes FROM schedules WHERE org_id = ? AND starts_at > datetime('now') ORDER BY starts_at"
+  ).all(orgId)) {
+    if (!nextByRoom.has(s.room_slug)) nextByRoom.set(s.room_slug, s);
+  }
   return dbRooms.map(r => {
     const state = liveRooms.get(roomKey(orgId, r.slug));
-    const nextShow = db.prepare(
-      "SELECT * FROM schedules WHERE room_slug = ? AND org_id = ? AND starts_at > datetime('now') ORDER BY starts_at LIMIT 1"
-    ).get(r.slug, orgId);
+    const nextShow = nextByRoom.get(r.slug);
     return {
       id: r.id, slug: r.slug, name: r.name,
       description: r.description, accentColor: r.accent_color, logoUrl: r.logo_url,
@@ -323,15 +329,21 @@ function updateRoom(slug, orgId, updates) {
 
 function deleteRoom(slug, orgId) {
   if (slug === 'main') return false;
-  db.prepare('DELETE FROM schedules WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  db.prepare('DELETE FROM recordings WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  db.prepare('DELETE FROM analytics WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
-  // Clear per-room email opt-ins + queued digest items for this room (org-scoped via the
-  // subscriber, since these tables key room_slug as free text with no FK to rooms). Prevents
-  // stale opt-ins silently re-attaching if the slug is later reused in the same org.
-  try { db.prepare('DELETE FROM email_subscriber_rooms WHERE room_slug = ? AND subscriber_id IN (SELECT id FROM email_subscribers WHERE org_id = ?)').run(slug, orgId); } catch {}
-  try { db.prepare('DELETE FROM email_digest_queue WHERE room_slug = ? AND org_id = ?').run(slug, orgId); } catch {}
-  db.prepare('DELETE FROM rooms WHERE slug = ? AND org_id = ?').run(slug, orgId);
+  // Atomic: all cross-table deletes commit together or not at all. Without the transaction a
+  // throw partway (or a crash) leaves the room half-deleted — e.g. schedules/recordings gone
+  // but the rooms row still present, or vice versa.
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM schedules WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    db.prepare('DELETE FROM recordings WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    db.prepare('DELETE FROM analytics WHERE room_slug = ? AND org_id = ?').run(slug, orgId);
+    // Clear per-room email opt-ins + queued digest items for this room (org-scoped via the
+    // subscriber, since these tables key room_slug as free text with no FK to rooms). Prevents
+    // stale opt-ins silently re-attaching if the slug is later reused in the same org.
+    try { db.prepare('DELETE FROM email_subscriber_rooms WHERE room_slug = ? AND subscriber_id IN (SELECT id FROM email_subscribers WHERE org_id = ?)').run(slug, orgId); } catch {}
+    try { db.prepare('DELETE FROM email_digest_queue WHERE room_slug = ? AND org_id = ?').run(slug, orgId); } catch {}
+    db.prepare('DELETE FROM rooms WHERE slug = ? AND org_id = ?').run(slug, orgId);
+  });
+  tx();
   const key = roomKey(orgId, slug);
   if (liveRooms.has(key)) liveRooms.delete(key);
   return true;
@@ -583,9 +595,12 @@ function getTranscript(recordingId, lang = 'en') {
 // Fail transcripts stuck in 'pending' longer than maxMinutes (e.g. sidecar died
 // mid-job). Returns the number reaped.
 function reapStaleTranscripts(maxMinutes = 60) {
+  // Key off updated_at, NOT created_at: markTranscriptPending's UPSERT refreshes updated_at each
+  // time a job is (re-)dispatched but leaves created_at at the original value. Comparing created_at
+  // would instantly fail any re-dispatched transcript (retranscribe of an old recording).
   const r = db.prepare(`
     UPDATE transcripts SET status = 'failed', updated_at = datetime('now')
-    WHERE status = 'pending' AND created_at < datetime('now', ?)
+    WHERE status = 'pending' AND updated_at < datetime('now', ?)
   `).run(`-${maxMinutes} minutes`);
   return r.changes;
 }

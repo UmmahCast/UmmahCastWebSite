@@ -86,7 +86,9 @@ try { db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_analytics_room_ts ON analytics(room_slug, ts);
-  CREATE INDEX IF NOT EXISTS idx_rooms_org ON rooms(org_id);`);
+  CREATE INDEX IF NOT EXISTS idx_rooms_org ON rooms(org_id);
+  CREATE INDEX IF NOT EXISTS idx_schedules_org_room ON schedules(org_id, room_slug);
+  CREATE INDEX IF NOT EXISTS idx_schedules_org_starts ON schedules(org_id, starts_at);`);
 } catch (err) {
   // Existing DB — tables exist with old schema, migrations below will add columns
   console.log('[db] Schema create skipped (existing DB), applying migrations...');
@@ -105,6 +107,7 @@ try { db.exec(`
     published INTEGER DEFAULT 0,
     recorded_at TEXT DEFAULT (datetime('now'))
   );
+  CREATE INDEX IF NOT EXISTS idx_recordings_org_room ON recordings(org_id, room_slug);
 `); } catch {}
 
 // --- Ensure organizations table exists (needed for migrations) ---
