@@ -93,6 +93,9 @@ let _roomHasPassword = null; // null = not yet known
   const info = Array.isArray(rooms) ? rooms.find(r => r.slug === room) : null;
   if (info) {
     document.getElementById('room-title-prompt').textContent = info.name;
+    // Nothing ever filled #room-name, so the niche's head rendered as an empty
+    // heading. The name is right here in the room info we already fetched.
+    document.getElementById('room-name').textContent = info.name;
     _roomHasPassword = !!info.hasPassword;
     if (info.hasPassword) document.getElementById('password-section').classList.remove('hidden');
   }
@@ -182,7 +185,17 @@ let _roomHasPassword = null; // null = not yet known
 const savedName = localStorage.getItem('uc_name');
 if (savedName) document.getElementById('name-input').value = savedName;
 
+let _joined = false;
+
 function joinRoom() {
+  // maybeAutoResume() clicks Join after an await, without knowing whether the
+  // user already tapped it — and HTMLElement.click() fires even though
+  // #name-screen is display:none by then. That opened a SECOND WebSocket while
+  // the first stayed live, feeding two interleaved Opus streams into the same
+  // sequence-mode SourceBuffer (audible garbling), doubling chat, and running
+  // two reconnect ladders. Pre-existing race; one flag closes it.
+  if (_joined) return;
+
   // Never connect blank to a password-protected room (the WS join would just be rejected and
   // loop). If the password field is shown but empty, focus it and bail.
   const _pwSection = document.getElementById('password-section');
@@ -191,6 +204,7 @@ function joinRoom() {
     if (_pwInput) _pwInput.focus();
     return;
   }
+  _joined = true;
   displayName = document.getElementById('name-input').value.trim() || 'Anonymous';
   roomPassword = document.getElementById('password-input')?.value || '';
   localStorage.setItem('uc_name', displayName);
@@ -208,6 +222,14 @@ function joinRoom() {
 
   document.getElementById('name-screen').classList.add('hidden');
   document.getElementById('player-screen').classList.remove('hidden');
+
+  // Build the audio graph HERE, inside the real click gesture. Created outside
+  // one, WebKit starts the AudioContext suspended — and once
+  // createMediaElementSource has captured the element, suspended means no sound
+  // at all, with resume() outside a gesture handler being a no-op. Doing it here
+  // also means the analyser exists from t=0, so 'connecting' is a real state.
+  getAudio();
+  mihrabState('connecting');
 
   connect();
 }
@@ -232,6 +254,16 @@ function joinRoom() {
 
 const dot = document.getElementById('dot');
 const statusText = document.getElementById('status-text');
+
+// #status is role="status", i.e. a polite live region. Assigning textContent
+// replaces the text node even when the string is identical, and the server
+// broadcasts a status frame on every listener join and leave — so an
+// unconditional write meant a 50-person room announced "LIVE" to every screen
+// reader on every join. Always set status through this.
+function setStatus(msg) {
+  if (statusText.textContent !== msg) statusText.textContent = msg;
+  statusText.classList.toggle('status-live-label', msg === 'LIVE');
+}
 const listenerCount = document.getElementById('listener-count');
 const elapsedEl = document.getElementById('elapsed');
 const offlineMsg = document.getElementById('offline-msg');
@@ -253,7 +285,7 @@ function connect() {
     capAttempts = 0;
     ws.send(JSON.stringify({ type: 'join', room, role: 'listener', password: roomPassword, displayName, orgSlug }));
     dot.classList.add('connected');
-    statusText.textContent = 'Connected — waiting for broadcast';
+    setStatus('Connected — waiting for broadcast');
   };
 
   ws.onmessage = (e) => {
@@ -291,7 +323,7 @@ function connect() {
     } else if (msg.type === 'branding') {
       applyBranding(msg);
     } else if (msg.type === 'error') {
-      statusText.textContent = msg.message;
+      setStatus(msg.message);
     }
   };
 
@@ -299,25 +331,29 @@ function connect() {
     dot.classList.remove('connected', 'live');
     cleanupPlayback();
     const code = event && event.code;
+    // cleanupPlayback() has just killed MSE, so audio dies within a second —
+    // continuing to measure would be dishonest. 'connecting' while we retry,
+    // 'offline' once we've given up.
+    mihrabState(code === 1008 || reconnectAttempts >= MAX_RECONNECT ? 'offline' : 'connecting');
     let delay;
     if (code === 1013) {
       // Room at capacity — back off harder so we don't pile on
       delay = Math.min(15000 * Math.pow(1.5, capAttempts), 120000);
       capAttempts++;
-      statusText.textContent = `Room at capacity, retrying in ${Math.round(delay / 1000)}s…`;
+      setStatus(`Room at capacity, retrying in ${Math.round(delay / 1000)}s…`);
     } else if (code === 1008) {
       // Permanent rejection (e.g. too many connections from this network) — reconnecting just
       // hammers the server and can't succeed. Stop and tell the user.
-      statusText.textContent = 'Too many connections from your network — try again later.';
+      setStatus('Too many connections from your network — try again later.');
       return;
     } else if (reconnectAttempts >= MAX_RECONNECT) {
       // Give up after sustained failure (room deleted, server down…) instead of looping forever.
-      statusText.textContent = 'Disconnected — refresh the page to reconnect.';
+      setStatus('Disconnected — refresh the page to reconnect.');
       return;
     } else {
       delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
       reconnectAttempts++;
-      statusText.textContent = 'Disconnected — reconnecting...';
+      setStatus('Disconnected — reconnecting...');
     }
     setTimeout(connect, delay);
   };
@@ -355,13 +391,16 @@ function react(type) {
 window.react = react;
 
 function spawnFloatingReaction(type) {
+  // Rise inside the niche, clipped by the arch as they go — the reaction
+  // belongs to the lit room, not to the whole viewport.
+  const host = document.getElementById('mihrab-niche') || document.body;
   const el = document.createElement('div');
   el.className = 'float-reaction';
   el.textContent = reactionEmoji[type] || '❤️';
-  el.style.left = (30 + Math.random() * 40) + '%';
-  el.style.bottom = '20%';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1500);
+  el.style.left = (18 + Math.random() * 56) + '%';
+  el.style.bottom = host === document.body ? '20%' : '8%';
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 1700);
 }
 
 // Audio + volume boost via Web Audio API
@@ -370,99 +409,361 @@ let audioCtx;
 let gainNode;
 let analyserNode;
 
+// Tuning for the Mihrab light. The two knobs most likely to need a nudge
+// against a real broadcast are NOISE_FLOOR and CURVE; the ballistics should not.
+const MIHRAB = {
+  FFT_SIZE: 1024,        // 21.3ms @48k — about two cycles of a 90Hz voice, so
+                         // the RMS doesn't wobble at the pitch rate (was 64,
+                         // i.e. 1.33ms: an eighth of one cycle)
+  FRAME_MS: 33,          // ~30Hz. The 45ms attack bandlimits the signal to
+                         // ~10Hz, so this is 3x Nyquist for it, and 33ms is
+                         // exactly every 2nd vsync at 60Hz — no beating.
+  DT_CLAMP_MS: 250,
+  NOISE_FLOOR: 0.008,    // ~-42dBFS: above mosque HVAC hiss through Opus,
+                         // below a murmur at 1m. broadcast.js treats peak<0.02
+                         // as silence, which is ~0.005-0.006 RMS — consistent.
+  REF_MIN: 0.030,
+  REF_MAX: 0.600,
+  REF_ATTACK_MS: 400,
+  REF_RELEASE_MS: 10000,
+  ATTACK_MS: 45,         // 63% in 45ms: instant, with a hint of filament
+  RELEASE_MS: 420,       // a 150ms inter-word gap only decays to 70% — the
+                         // lamp breathes, it does not strobe per syllable
+  BLOOM_MS: 1200,        // at a 1s pause level is at 9% but bloom is still 44%;
+                         // that lag between core and halo is the whole point
+  CURVE: 0.6,            // ~Stevens' brightness exponent
+  IDLE_FLOOR: 0.06,
+  DECIMALS: 2,
+  REDUCED_LEVEL: 0.55,
+};
+
+let _graphBuilt = false;
+
 function getAudio() {
-  if (!audio) {
-    audio = document.getElementById('audio');
-    // Set up gain node for volume boost (0-200%) + analyser for visualizer
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioCtx.createMediaElementSource(audio);
-      gainNode = audioCtx.createGain();
-      analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 64;
-      analyserNode.smoothingTimeConstant = 0.7;
-      source.connect(gainNode);
-      gainNode.connect(analyserNode);
-      analyserNode.connect(audioCtx.destination);
-      startVisualizer();
-    } catch {}
-  }
+  if (!audio) audio = document.getElementById('audio');
+  buildAudioGraph();
   return audio;
 }
 
-// ===== Live audio visualizer (24 bars) =====
-let vuRafId = null;
-let vuStatic = false;  // for prefers-reduced-motion
-function startVisualizer() {
-  const canvas = document.getElementById('vu-canvas');
-  if (!canvas || !analyserNode) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  vuStatic = reduced;
-
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+// Graph: source -> analyser -> gain -> destination.
+// The analyser sits BEFORE the gain deliberately, so the light measures the
+// broadcaster's voice and not the listener's volume slider. Post-gain (the old
+// order) meant muting to 0% killed the light while someone was still speaking,
+// and 200% pinned it — the slider is a private playback preference and carries
+// no information about the khatib.
+// createMediaElementSource can only ever be called once per element, and a
+// second call can permanently silence it — hence the latch, set BEFORE the try
+// so a throw can never license a retry.
+function buildAudioGraph() {
+  if (_graphBuilt || !audio) return;
+  _graphBuilt = true;
+  let source = null;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    source = audioCtx.createMediaElementSource(audio);
+    gainNode = audioCtx.createGain();
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = MIHRAB.FFT_SIZE;
+    // NB: no smoothingTimeConstant — it only smooths the frequency-magnitude
+    // array and has no effect on the time-domain getters we use for RMS.
+    source.connect(analyserNode);
+    analyserNode.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    audioCtx.addEventListener('statechange', mihrabOnCtxState);
+  } catch (err) {
+    console.warn('[audio] Web Audio graph unavailable, falling back to element volume', err);
+    // If createMediaElementSource succeeded but a later step threw, the element
+    // is captured by the graph and connected to nothing — total silence. Bypass
+    // straight to the destination so audio is always audible. Never close the
+    // context: a closed context leaves a captured element permanently silent.
+    if (source && audioCtx) { try { source.connect(audioCtx.destination); } catch {} }
+    gainNode = null;
+    analyserNode = null;
   }
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
+  mihrabInit();
+}
 
-  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2d8a4e';
-  const muted = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#2a2a33';
-  const data = new Uint8Array(analyserNode.frequencyBinCount);
+// ===== The Mihrab light: audio RMS -> two CSS custom properties =====
+// Everything visual is derived in CSS from --mihrab-level and --mihrab-bloom.
+// This module never sets a colour, a size or a filter, and never reads layout.
 
-  let lastFrame = 0;
-  let pulsePhase = 0;
+function mihrabCoef(dt, tauMs) { return 1 - Math.exp(-dt / tauMs); }
 
-  function draw(ts) {
-    vuRafId = requestAnimationFrame(draw);
-    if (document.hidden) return;
-    if (ts - lastFrame < 33) return;  // cap at ~30fps
-    lastFrame = ts;
+let _mkEl = null;
+let _mkBuf = null;
+let _mkUseFloat = false;
+let _mkRaf = 0;
+let _mkRunning = false;
+let _mkInited = false;
+let _mkSeed = true;
+let _mkLastTs = 0;
+let _mkRef = MIHRAB.REF_MIN;
+let _mkEnv = 0;
+let _mkBloom = 0;
+let _mkLevelStr = '';
+let _mkBloomStr = '';
+let _mkState = 'connecting';
+let _mkUnmetered = false;
+let _mkVisible = true;
+let _mkMq = null;
+let _mkIo = null;
 
-    const w = canvas.width, h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
+function mihrabInit() {
+  if (_mkInited) return;
+  _mkEl = document.getElementById('mihrab');
+  if (!_mkEl) return;              // no markup yet — the engine simply no-ops
+  _mkInited = true;
 
-    if (vuStatic || !audio || audio.paused) {
-      // Static state: pulsing dot
-      pulsePhase = (pulsePhase + 0.04) % (Math.PI * 2);
-      const alpha = 0.35 + 0.35 * (Math.sin(pulsePhase) * 0.5 + 0.5);
-      ctx.fillStyle = audio && !audio.paused ? accent : muted;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(w / 2, h / 2, Math.min(w, h) / 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      return;
-    }
+  _mkMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (_mkMq.addEventListener) _mkMq.addEventListener('change', mihrabOnMotion);
+  else if (_mkMq.addListener) _mkMq.addListener(mihrabOnMotion);
 
-    analyserNode.getByteFrequencyData(data);
-    const bars = 24;
-    const step = Math.floor(data.length / bars) || 1;
-    const barW = w / bars;
-    const gap = barW * 0.25;
-    const drawW = barW - gap;
-    const baseline = h * 0.95;
-    const maxH = h * 0.85;
-
-    for (let i = 0; i < bars; i++) {
-      let v = 0;
-      for (let j = 0; j < step; j++) v = Math.max(v, data[i * step + j] || 0);
-      const norm = v / 255;
-      const barH = Math.max(2 * dpr, norm * maxH);
-      const x = i * barW + gap / 2;
-      const y = baseline - barH;
-      // Color: dim accent for quiet, full accent for loud
-      ctx.fillStyle = accent;
-      ctx.globalAlpha = 0.3 + 0.7 * norm;
-      ctx.fillRect(x, y, drawW, barH);
-    }
-    ctx.globalAlpha = 1;
+  if (analyserNode) {
+    _mkUseFloat = typeof analyserNode.getFloatTimeDomainData === 'function';
+    _mkBuf = _mkUseFloat ? new Float32Array(analyserNode.fftSize)
+                         : new Uint8Array(analyserNode.fftSize);
+  } else {
+    // No analyser will ever appear — hand the whole appearance to CSS.
+    mihrabSetUnmetered(true);
   }
-  if (vuRafId) cancelAnimationFrame(vuRafId);
-  vuRafId = requestAnimationFrame(draw);
+
+  document.addEventListener('visibilitychange', mihrabOnVisibility);
+  window.addEventListener('pagehide', mihrabOnPageHide);
+  window.addEventListener('pageshow', mihrabOnPageShow);
+  if (audio) {
+    audio.addEventListener('playing', mihrabOnPlaying);
+    audio.addEventListener('pause', mihrabOnPause);
+    audio.addEventListener('ended', mihrabOnPause);
+    audio.addEventListener('emptied', mihrabOnPause);
+  }
+
+  // Stop writing when the niche has scrolled out of view. Without this, the
+  // fixed bottom nav's backdrop-filter would keep re-blurring over a component
+  // the user cannot see.
+  if ('IntersectionObserver' in window) {
+    _mkIo = new IntersectionObserver((entries) => {
+      _mkVisible = entries[entries.length - 1].isIntersecting;
+      // Also parks the CSS ember-breath. That animation runs independently of
+      // this loop, and while the niche overlaps the fixed bottom nav its
+      // opacity changes force that nav's backdrop-filter to re-blur.
+      _mkEl.classList.toggle('mihrab--offscreen', !_mkVisible);
+      if (!_mkVisible) mihrabPause();
+      else if (_mkState === 'live') mihrabStart();
+    }, { threshold: 0.1 });
+    _mkIo.observe(_mkEl);
+  }
+
+  mihrabOnMotion();
+  mihrabApplyState();
+}
+
+function mihrabReducedMotion() { return !!(_mkMq && _mkMq.matches); }
+
+// Under `reduce` the loop never starts at all. A large bright area changing at
+// 3-30Hz sits squarely in the photosensitive-seizure band, which is a worse
+// problem than the vestibular one the preference nominally addresses. Nothing
+// is lost: "someone is speaking" is already carried by #status-text and the dot.
+function mihrabOnMotion() {
+  if (!_mkEl) return;
+  if (mihrabReducedMotion()) {
+    _mkEl.dataset.motion = 'reduced';
+    mihrabPause();
+    mihrabWrite(MIHRAB.REDUCED_LEVEL, MIHRAB.REDUCED_LEVEL, true);
+  } else {
+    delete _mkEl.dataset.motion;
+    mihrabWrite(0, 0, true);
+    if (_mkState === 'live') mihrabStart();
+  }
+}
+
+function mihrabSetUnmetered(on) {
+  if (!_mkEl || _mkUnmetered === on) return;
+  _mkUnmetered = on;
+  _mkEl.classList.toggle('mihrab--unmetered', on);
+  if (on) {
+    // CSS supplies its own constants; stop fighting it with inline styles.
+    _mkEl.style.removeProperty('--mihrab-level');
+    _mkEl.style.removeProperty('--mihrab-bloom');
+    _mkLevelStr = '';
+    _mkBloomStr = '';
+  }
+}
+
+// Quantising to 2 decimals and comparing the string gets the epsilon check and
+// the allocation in one step, and skips 20-40% of writes during slow decays.
+// Passing a raw number would let WebIDL stringify it to 17 significant digits.
+function mihrabWrite(level, bloom, force) {
+  if (!_mkEl || _mkUnmetered) return;
+  const l = level.toFixed(MIHRAB.DECIMALS);
+  if (force || l !== _mkLevelStr) { _mkLevelStr = l; _mkEl.style.setProperty('--mihrab-level', l); }
+  const b = bloom.toFixed(MIHRAB.DECIMALS);
+  if (force || b !== _mkBloomStr) { _mkBloomStr = b; _mkEl.style.setProperty('--mihrab-bloom', b); }
+}
+
+function mihrabRms() {
+  if (!analyserNode || !_mkBuf) return -1;
+  const buf = _mkBuf;
+  const n = buf.length;
+  let sum = 0;
+  if (_mkUseFloat) {
+    analyserNode.getFloatTimeDomainData(buf);
+    for (let i = 0; i < n; i++) { const v = buf[i]; sum += v * v; }
+  } else {
+    analyserNode.getByteTimeDomainData(buf);
+    // 128 is exact digital zero (byte = round(sample*128)+128). Dividing by
+    // 127.5 instead would leave a permanent DC pedestal — a constant non-zero
+    // RMS during true silence, i.e. the exact shimmer the gate exists to remove.
+    for (let i = 0; i < n; i++) { const v = (buf[i] - 128) * 0.0078125; sum += v * v; }
+  }
+  return Math.sqrt(sum / n);
+}
+
+function mihrabFrame(ts) {
+  if (!_mkRunning) { _mkRaf = 0; return; }
+  _mkRaf = requestAnimationFrame(mihrabFrame);
+  if (document.hidden) return;
+  if (_mkLastTs && ts - _mkLastTs < MIHRAB.FRAME_MS) return;
+
+  let dt = _mkLastTs ? ts - _mkLastTs : MIHRAB.FRAME_MS;
+  if (dt > MIHRAB.DT_CLAMP_MS) dt = MIHRAB.DT_CLAMP_MS;
+  _mkLastTs = ts;
+
+  const rms = mihrabRms();
+  if (rms < 0) { mihrabSetUnmetered(true); mihrabPause(); return; }
+
+  // There is deliberately NO runtime "dead analyser" watchdog here. One was
+  // tried, keyed on bit-exact zero for 5s while currentTime advanced, on the
+  // premise that real rooms always have some hiss. The premise is wrong — a
+  // hardware-muted mic or a mis-routed virtual input decodes to exact zeros —
+  // and the failure was inverted: it handed over to .mihrab--unmetered, whose
+  // canned constants (L=0.42, B=0.50) render the lamp 1.7-4x BRIGHTER than the
+  // live-but-quiet state it replaced. Silence would have lit the niche up.
+  // A broken tap and a silent source are indistinguishable from here and want
+  // opposite renderings, so we render silence: the idle floor, a dim lamp.
+  // The genuinely unmetered case (no analyser at all) is caught in mihrabInit.
+
+  // Subtract-and-rescale rather than a hard gate, so quiet speech fades in
+  // instead of popping from off to the floor-mapped brightness.
+  const F = MIHRAB.NOISE_FLOOR;
+  const gated = rms <= F ? 0 : (rms - F) / (1 - F);
+
+  // Auto-normalising reference: source level varies by 20+dB between a phone on
+  // a lectern and a line-in from the PA, so a fixed gain would leave half the
+  // mosques permanently dim and the other half permanently pinned. The attack
+  // is deliberately not instant — otherwise one door slam pins the range high
+  // and dims the following 10 seconds of speech.
+  _mkRef += (gated - _mkRef) * mihrabCoef(dt, gated > _mkRef ? MIHRAB.REF_ATTACK_MS : MIHRAB.REF_RELEASE_MS);
+  if (_mkRef < MIHRAB.REF_MIN) _mkRef = MIHRAB.REF_MIN;
+  else if (_mkRef > MIHRAB.REF_MAX) _mkRef = MIHRAB.REF_MAX;
+
+  let target = gated / _mkRef;
+  if (target > 1) target = 1;
+  // Perceptual curve before the ballistics, so the ms constants below describe
+  // what the eye actually sees. A power curve rather than dB: dB goes to -inf
+  // at zero and re-expands the region just above the gate.
+  if (target > 0) target = Math.pow(target, MIHRAB.CURVE);
+
+  if (_mkSeed) { _mkEnv = target; _mkBloom = target; _mkSeed = false; }
+  else {
+    _mkEnv += (target - _mkEnv) * mihrabCoef(dt, target > _mkEnv ? MIHRAB.ATTACK_MS : MIHRAB.RELEASE_MS);
+    _mkBloom += (_mkEnv - _mkBloom) * mihrabCoef(dt, MIHRAB.BLOOM_MS);
+  }
+
+  // The 0.06 floor keeps the lamp visibly a lamp mid-sentence. The longer-term
+  // "live but silent for a minute" case is handled in CSS by --mihrab-rest,
+  // keyed off the state rather than the signal, so we never lie about the audio.
+  mihrabWrite(Math.max(MIHRAB.IDLE_FLOOR, _mkEnv), _mkBloom, false);
+}
+
+// Explicitly idempotent, and defensively cancels first. This is mandatory, not
+// belt-and-braces: showLive() fires on every status frame (join, reaction, chat
+// toggle...), so without the latch one reaction burst spawns N concurrent rAF
+// loops — the same hazard initMSE() already guards against.
+function mihrabStart() {
+  if (!_mkInited || _mkRunning) return;
+  // Deliberately NOT gated on _mkUnmetered. The watchdog can only clear that
+  // flag from inside the loop, so refusing to restart while unmetered makes any
+  // pause terminal: mute the mic for 5s, then background the tab or let a
+  // reconnect fire `emptied`, and the light would never track the voice again
+  // for the rest of the session. A null analyser is the only permanent case,
+  // and that is what the !analyserNode guard below is for.
+  if (mihrabReducedMotion() || !_mkVisible || !analyserNode) return;
+  _mkRunning = true;
+  _mkSeed = true;
+  _mkLastTs = 0;
+  if (_mkRaf) cancelAnimationFrame(_mkRaf);
+  _mkRaf = requestAnimationFrame(mihrabFrame);
+}
+
+// Keeps the last published value — zeroing here would flash off then on.
+function mihrabPause() {
+  _mkRunning = false;
+  if (_mkRaf) { cancelAnimationFrame(_mkRaf); _mkRaf = 0; }
+  _mkLastTs = 0;
+  _mkSeed = true;
+}
+
+function mihrabStop() {
+  mihrabPause();
+  _mkEnv = 0; _mkBloom = 0; _mkRef = MIHRAB.REF_MIN;
+  // Under reduced motion the loop never runs, so this is the ONLY writer —
+  // zeroing here would leave the niche dark for the whole broadcast. The
+  // per-state --mihrab-gain still dims offline/connecting appropriately.
+  const rest = mihrabReducedMotion() ? MIHRAB.REDUCED_LEVEL : 0;
+  mihrabWrite(rest, rest, true);
+}
+
+function mihrabOnVisibility() {
+  if (document.hidden) mihrabPause();
+  else if (_mkState === 'live') mihrabStart();
+}
+function mihrabOnPageHide(ev) { if (ev && ev.persisted) mihrabPause(); else mihrabDestroy(); }
+function mihrabOnPageShow(ev) { if (ev && ev.persisted && _mkState === 'live') mihrabStart(); }
+function mihrabOnPlaying() { if (_mkState === 'live') mihrabStart(); }
+function mihrabOnPause() { mihrabPause(); }
+
+// iOS uses a non-standard 'interrupted' state (phone call, Siri, another app
+// taking the audio session), so treat anything other than 'running' as blocked.
+function mihrabOnCtxState() {
+  if (!audioCtx) return;
+  if (audioCtx.state !== 'running') mihrabPause();
+  else if (_mkState === 'live') mihrabStart();
+}
+
+function mihrabApplyState() {
+  if (!_mkEl) return;
+  _mkEl.dataset.state = _mkState;
+  if (_mkState === 'live') mihrabStart();
+  else mihrabStop();
+}
+
+function mihrabState(name) {
+  if (_mkState === name) return;
+  _mkState = name;
+  mihrabApplyState();
+}
+window.mihrabState = mihrabState;
+
+function mihrabDestroy() {
+  mihrabPause();
+  if (_mkIo) { _mkIo.disconnect(); _mkIo = null; }
+  document.removeEventListener('visibilitychange', mihrabOnVisibility);
+  window.removeEventListener('pagehide', mihrabOnPageHide);
+  window.removeEventListener('pageshow', mihrabOnPageShow);
+  if (audio) {
+    audio.removeEventListener('playing', mihrabOnPlaying);
+    audio.removeEventListener('pause', mihrabOnPause);
+    audio.removeEventListener('ended', mihrabOnPause);
+    audio.removeEventListener('emptied', mihrabOnPause);
+  }
+  if (audioCtx) { try { audioCtx.removeEventListener('statechange', mihrabOnCtxState); } catch {} }
+  if (_mkMq) {
+    if (_mkMq.removeEventListener) _mkMq.removeEventListener('change', mihrabOnMotion);
+    else if (_mkMq.removeListener) _mkMq.removeListener(mihrabOnMotion);
+  }
+  _mkBuf = null;
+  _mkEl = null;
+  _mkInited = false;
 }
 
 // Volume slider
@@ -526,20 +827,46 @@ function processQueue() {
   if (gainNode && volumeSlider) {
     gainNode.gain.value = parseInt(volumeSlider.value, 10) / 100;
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
+  // iOS reports a non-standard 'interrupted' state (phone call, Siri), so
+  // resume on anything that isn't 'running', not just 'suspended'.
+  if (audioCtx && audioCtx.state !== 'running') {
     audioCtx.resume();
   }
   if (a.paused) {
-    a.play().catch(() => {
-      statusText.textContent = 'Tap anywhere to start audio';
-      document.addEventListener('click', () => { a.play(); if (statusText.textContent.includes('Tap')) statusText.textContent = 'LIVE'; }, { once: true });
-    });
+    a.play().catch(() => { armAudioUnblock(a); });
   }
+}
+
+// The old version listened for one click and called only a.play() — which fixes
+// nothing when the AudioContext is the thing that's suspended, and gave the user
+// exactly one attempt. Retry until both the context is running and the element
+// is actually playing, and accept a keypress so keyboard users aren't stranded.
+const TAP_PROMPT = 'Tap anywhere to start audio';
+let _unblockArmed = false;
+function armAudioUnblock(a) {
+  if (_unblockArmed) return;
+  _unblockArmed = true;
+  setStatus(TAP_PROMPT);
+  const tryUnblock = () => {
+    if (audioCtx && audioCtx.state !== 'running') audioCtx.resume();
+    a.play().catch(() => {});
+    if ((!audioCtx || audioCtx.state === 'running') && !a.paused) {
+      document.removeEventListener('click', tryUnblock);
+      document.removeEventListener('touchend', tryUnblock);
+      document.removeEventListener('keydown', tryUnblock);
+      _unblockArmed = false;
+      if (statusText.textContent === TAP_PROMPT) setStatus('LIVE');
+    }
+  };
+  document.addEventListener('click', tryUnblock);
+  document.addEventListener('touchend', tryUnblock);
+  document.addEventListener('keydown', tryUnblock);
 }
 
 function showLive() {
   dot.classList.remove('connected'); dot.classList.add('live');
-  statusText.textContent = 'LIVE';
+  if (statusText.textContent !== TAP_PROMPT) setStatus('LIVE');
+  mihrabState('live');
   offlineMsg.classList.add('hidden'); playerArea.classList.remove('hidden');
   startTitlePulse();
   // Toast only on a real offline→live transition. showLive() runs on every status frame (join,
@@ -551,7 +878,8 @@ function showLive() {
 }
 function showOffline() {
   dot.classList.remove('live'); dot.classList.add('connected');
-  statusText.textContent = 'No broadcast right now';
+  setStatus('No broadcast right now');
+  mihrabState('offline');
   offlineMsg.classList.remove('hidden'); stopTimer();
   stopTitlePulse();
   if (_lastLiveToast !== 'offline') {
@@ -567,7 +895,7 @@ let _titleAlt = false;
 function startTitlePulse() {
   if (_titleTimer) return;
   if (!_origTitle) _origTitle = document.title;
-  const roomLabel = (typeof roomName !== 'undefined' && roomName?.textContent) || _origTitle;
+  const roomLabel = document.getElementById('room-name')?.textContent || _origTitle;
   function tick() {
     // If user is looking at the tab, don't pulse — they already know
     if (!document.hidden) { document.title = _origTitle; return; }
@@ -683,9 +1011,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggle = document.getElementById('listeners-toggle');
   const list = document.getElementById('listeners-list');
   if (!toggle || !list) return;
-  toggle.addEventListener('click', () => {
+  const toggleList = () => {
     list.classList.toggle('hidden');
-    if (!list.classList.contains('hidden')) fetchListeners();
+    const open = !list.classList.contains('hidden');
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) fetchListeners();
+  };
+  toggle.addEventListener('click', toggleList);
+  // It's a div with role="button", so Enter/Space have to be wired by hand.
+  toggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(); }
   });
 });
 

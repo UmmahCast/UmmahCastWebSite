@@ -94,6 +94,12 @@
   --accent-glow: rgba(15, 69, 48, 0.12);
   --gold: #a38028;
   --green: #16a34a;
+  /* Stays red in the light theme, deliberately. A gold --live was tried and
+     reverted: --live-glow tints the .card-live wash, and gold text on a gold
+     wash is hue-on-hue — org-landing's LIVE badge measured 4.42:1 even at the
+     original 0.18 alpha, against 4.83:1 for red. It also collapsed the hue cue
+     on broadcast.html's on-air/recording dot from 36° to 3° away from the idle
+     dot. The mihrab plaque scopes its own warm --live instead. */
   --live: #b91c1c;
   --live-glow: rgba(185, 28, 28, 0.18);
   --danger: #b91c1c;
@@ -380,7 +386,9 @@ button:focus-visible {
 .badge-live .dot {
   width: 6px;
   height: 6px;
-  background: white;
+  /* was `white` — 1.04:1 on the light theme's --surface, i.e. invisible.
+     The rule above calls this "a small ember dot"; make it one. */
+  background: var(--live);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -1443,3 +1451,710 @@ dialog.follow-dialog[open] { animation: dialog-pop 0.18s ease-out; }
   .org-hero-name { font-size: 2.15rem; }
 }
 
+
+/* =====================================================================
+   THE MIHRAB PLAYER  (Mishkāt phase 2)
+   "a prayer space rendered in true geometry and light" — Āyat an-Nūr.
+   A live room is a lamp lit in a niche. The broadcaster's voice is the
+   light: JS writes two numbers (--mihrab-level, --mihrab-bloom) onto
+   #mihrab ~30x/s and every appearance below is derived from them in CSS.
+
+   Performance contract — violating any of these WILL drop frames:
+     - No filter/blur radius, colour, gradient stop, size or position is
+       ever a function of the level. Only opacity and transform are.
+       The blur ladder (3/7/14/16/28px) is fixed and cross-faded.
+     - Nothing REPAINTS per frame. Note this does not fully exempt the two
+       backdrop-filter(12px) navs: they re-sample whatever is beneath them,
+       so a composited opacity change under the fixed bottom nav still costs
+       a blur recompute. Mitigated by parking the ember-breath offscreen
+       (.mihrab--offscreen) rather than by pretending the cost is zero.
+     - will-change lives on exactly two layers (.mihrab-g-core, .mihrab-g-halo) —
+       the only two that scale.
+   ===================================================================== */
+
+@property --mihrab-level { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --mihrab-bloom { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+/* ---------- the wall ---------- */
+#mihrab {
+  position: relative;
+  isolation: isolate;
+  contain: layout paint;
+  width: 100%;
+  padding: 14px 0;
+  margin-block-end: 0.75rem;
+  border-radius: var(--radius-sharp);
+
+  /* tunables — see the knob table in the deploy notes */
+  --mihrab-gain: 1;
+  --mihrab-rest: 0.18;      /* resting bloom floor while live */
+  --core-base: 0.30;
+  --hot-knee: 0.46;
+  --hot-slope: 1.851852;    /* 1 / (1 - hot-knee) */
+  --reach-gain: 1;
+  --veil-base: 0.34;
+  --veil-peak: 0;
+  --swell-core: 0.14;
+  --swell-halo: 0.10;
+  --lift-halo: 12px;
+  --breath-lo: 0.80;
+  --breath-hi: 0.92;        /* permanent cap — half the anti-blowout system */
+  --breath-dur: 5.6s;
+
+  /* Lamp palette is hard-coded and theme-invariant, deliberately NOT var(--live).
+     A flame is a flame in both themes, and the lamp must not drift if --live is
+     ever re-tuned for chrome (as it was for the light theme in this same file). */
+  --wall-1: #241d15;
+  --wall-2: #1b1610;
+  --wall-3: #120e09;
+  --recess-1: #2a2013;
+  --recess-2: #1a1309;
+  --recess-3: #0b0704;
+  --rim-line: rgba(233, 209, 158, 0.26);
+  --rim-hot-col: rgba(255, 238, 196, 0.92);
+
+  /* niche sizing: 4:5, capped 296x370, floored 216x270 */
+  --mihrab-nonniche: 474px;
+  --niche-w: clamp(216px, 81%, 296px);
+
+  background: linear-gradient(180deg, var(--wall-1) 0%, var(--wall-2) 58%, var(--wall-3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, 0.045);
+}
+
+/* Derived drivers. Every formula reads these aliases rather than the raw
+   custom properties, which is what lets [data-state] and .mihrab--unmetered
+   redefine behaviour by setting two constants. Fallbacks of 0 keep the
+   component sane before JS runs and on engines without @property. */
+#mihrab {
+  --L:  var(--mihrab-level, 0);
+  --B:  var(--mihrab-bloom, 0);
+  --Bf: var(--B);
+  --M:  calc(var(--L) * 0.55 + var(--B) * 0.45);
+  --K:  clamp(0, calc((var(--L) - var(--hot-knee)) * var(--hot-slope)), 1);
+  /* Two independent gains. --mihrab-gain belongs to the STATE, --mihrab-theme-gain
+     to the theme. They must not be the same property: `[data-theme="light"] #mihrab`
+     and `#mihrab[data-state="offline"]` are both specificity (1,1,0), so whichever
+     came later in the file would silently win — and the theme block, coming last,
+     was cancelling the offline dimming and rendering an unlit niche 7x too bright. */
+  --g:  calc(var(--mihrab-gain) * var(--mihrab-theme-gain, 1) * var(--mihrab-compat-gain, 1));
+}
+
+/* Constrain the niche by viewport height only where the unit exists.
+   This MUST be @supports, not a two-declaration fallback: custom properties
+   have no parse-time grammar, so a `100svh` declaration is "valid" everywhere
+   and always wins — the breakage only surfaces later as invalid-at-computed-
+   value-time on `width`, which resolves to `auto` and blows the niche up to
+   fill the panel.
+   svh, not dvh: dvh is the *dynamic* viewport and sweeps ~110-140px on iOS as
+   the toolbars retract. The clamp band here runs from 744 to 844, so dvh would
+   animate the aperture between 216x270 and 296x370 during an ordinary scroll,
+   reflowing every card below it. svh is the toolbars-visible worst case, so it
+   sizes conservatively and never moves. */
+@supports (height: 100svh) {
+  #mihrab { --niche-w: clamp(216px, min(81%, calc((100svh - var(--mihrab-nonniche)) * 0.8)), 296px); }
+}
+
+/* ---------- head: logo + room name ---------- */
+.mihrab-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding-inline: 1rem;
+  margin-block-end: 12px;
+}
+.mihrab-head .room-logo { width: 32px; height: 32px; flex: none; border-radius: var(--radius-sharp); }
+.mihrab-head-text { min-width: 0; flex: 1; }
+.mihrab-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--text);
+}
+.mihrab-head .room-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  /* One line on mobile so it costs ~18px, not hidden outright: hiding it meant
+     an org could set a description and no phone listener would ever see it. */
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mihrab-head .room-desc.hidden { display: none; }
+
+/* ---------- aperture: the sized box the arch lives in ---------- */
+.mihrab-aperture {
+  position: relative;
+  container-type: inline-size;
+  width: var(--niche-w);
+  aspect-ratio: 4 / 5;
+  margin: 0 auto;
+}
+
+/* ---------- the clipped interior ---------- */
+#mihrab-niche {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;          /* terminates the blend group so WebKit clips it as one surface */
+  overflow: hidden;            /* rect backstop if the path clip is ever dropped */
+  transform: translateZ(0);    /* promotes: the clip bakes into a layer mask */
+  clip-path: url(#mihrab-arch-clip);
+  background: transparent;     /* load-bearing — the recess carries its own clip instead */
+}
+
+/* the ground */
+.mihrab-recess {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  clip-path: url(#mihrab-arch-clip);
+  background:
+    linear-gradient(90deg,
+      rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.10) 12%, rgba(0,0,0,0) 30%,
+      rgba(0,0,0,0) 70%, rgba(0,0,0,0.10) 88%, rgba(0,0,0,0.55) 100%),
+    linear-gradient(180deg,
+      rgba(0,0,0,0) 62%, rgba(0,0,0,0.30) 88%, rgba(0,0,0,0.55) 100%),
+    radial-gradient(118% 84% at 50% 44%,
+      var(--recess-1) 0%, var(--recess-2) 44%, #100b06 74%, var(--recess-3) 100%);
+}
+
+/* the unlit form: crown darkening + the springline shelf at 51.36% */
+.mihrab-soffit {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  clip-path: url(#mihrab-arch-clip);
+  background:
+    /* The shelf is deliberately narrow and faint. Widened or brightened it
+       stops reading as the arch meeting the jamb and starts reading as a
+       horizon line drawn across the niche. */
+    linear-gradient(180deg,
+      rgba(0,0,0,0) 50.30%,
+      rgba(232,190,120,0.038) 51.36%,
+      rgba(0,0,0,0) 52.50%),
+    radial-gradient(132% 56% at 50% -6%,
+      rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.38) 34%,
+      rgba(0,0,0,0.13) 60%, rgba(0,0,0,0) 80%);
+}
+
+/* ---------- the light ---------- */
+.mihrab-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transform: translateZ(0);
+  animation: mihrab-ember-breath var(--breath-dur) ease-in-out infinite;
+}
+/* plus-lighter is the native additive blend (GL_ONE, GL_ONE) — no backdrop
+   read-back, and the only physically correct way to accumulate light. */
+.mihrab-glow > * {
+  position: absolute;
+  mix-blend-mode: plus-lighter;
+  pointer-events: none;
+}
+@supports not (mix-blend-mode: plus-lighter) {
+  /* Shells fall back to screen, which is sub-additive — the light stacks
+     flatter, so lift the gain to compensate. This, not `not (screen)`, is the
+     condition that actually fires on older engines. */
+  .mihrab-glow > * { mix-blend-mode: screen; }
+  #mihrab { --mihrab-compat-gain: 1.18; }
+}
+
+/* floor pool — keys off BLOOM, so the room stays warm through pauses */
+.mihrab-g-pool {
+  inset: 59.5% 0 0;
+  transform: translateZ(0);
+  filter: blur(14px);
+  opacity: calc((0.16 + var(--Bf) * 0.62) * var(--g));
+  background: radial-gradient(78% 46% at 50% 92%,
+    rgba(226,172,84,0.40) 0%, rgba(198,138,54,0.24) 34%,
+    rgba(158,100,36,0.10) 62%, rgba(120,72,24,0) 100%);
+}
+
+/* ambient wash + vertical reach — keys off BLOOM.
+   Reach is an opacity phenomenon on a pre-shaped tall gradient, never a
+   geometry change: raising opacity lifts the crown out of black and the
+   eye reads that as the light climbing. */
+.mihrab-g-bloom {
+  inset: 0;
+  transform: translateZ(0);
+  filter: blur(28px);
+  opacity: calc((0.10 + var(--Bf) * 0.74) * var(--g) * var(--reach-gain));
+  background:
+    radial-gradient(115% 78% at 50% 26%,
+      rgba(214,156,70,0.42) 0%, rgba(190,130,54,0.26) 38%,
+      rgba(150,96,36,0.10) 66%, rgba(120,72,24,0) 88%),
+    radial-gradient(78% 62% at 50% 46%,
+      rgba(228,176,88,0.42) 0%, rgba(200,142,58,0.24) 40%,
+      rgba(160,102,38,0.09) 70%, rgba(130,78,26,0) 100%);
+}
+
+/* mid shell — the visible climb. One of the two layers permitted a transform. */
+.mihrab-g-halo {
+  inset: 13% 14.9% 21%;
+  filter: blur(16px);
+  opacity: calc((0.08 + var(--M) * 0.80) * var(--g));
+  transform:
+    translateZ(0)
+    translateY(calc(var(--M) * -1 * var(--lift-halo)))
+    scale(calc(1 + var(--M) * var(--swell-halo)));
+  will-change: opacity, transform;
+  background: radial-gradient(closest-side at 50% 50%,
+    rgba(232,182,98,0.52) 0%, rgba(214,158,66,0.34) 34%,
+    rgba(184,120,42,0.16) 62%, rgba(140,84,26,0.05) 82%,
+    rgba(120,70,20,0) 100%);
+}
+
+/* the lamp body — keys off LEVEL, drops immediately with the voice */
+.mihrab-g-core {
+  inset: 28.2% 31.8% 36.2%;
+  filter: blur(7px);
+  opacity: calc((var(--core-base) + var(--L) * 0.66) * var(--g));
+  transform: translateZ(0) scale(calc(1 + var(--L) * var(--swell-core)));
+  will-change: opacity, transform;
+  background: radial-gradient(closest-side at 50% 50%,
+    rgba(255,226,160,0.92) 0%, rgba(246,196,104,0.72) 22%,
+    rgba(220,164,62,0.44) 46%, rgba(196,128,42,0.18) 70%,
+    rgba(160,96,28,0) 100%);
+}
+
+/* filament + colour temperature. Temperature is a cross-fade of a paler
+   layer, never a colour interpolation — interpolating a stop would repaint. */
+.mihrab-g-core-hot {
+  inset: 37.9% 41.9% 45.9%;
+  transform: translateZ(0);
+  filter: blur(3px);
+  opacity: calc(var(--K) * 0.88 * var(--g));
+  background: radial-gradient(closest-side at 50% 50%,
+    rgba(255,248,231,0.98) 0%, rgba(255,236,190,0.86) 24%,
+    rgba(255,214,132,0.46) 52%, rgba(255,196,96,0.14) 76%,
+    rgba(255,190,90,0) 100%);
+}
+
+/* The counterweight: the architecture's own shading re-asserted OVER the
+   light. The vault does not stop being a vault because the lamp got loud.
+   Must stay immediately after .mihrab-glow in the DOM — both are z-index 1
+   and the order is what puts the veil on top. */
+.mihrab-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  /* No translateZ: --veil-peak is 0, so this layer is static. Promoting it
+     would cost a full-size texture for nothing. */
+  opacity: calc(var(--veil-base) + var(--K) * var(--veil-peak));
+  background:
+    radial-gradient(132% 56% at 50% -6%,
+      rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.32) 34%,
+      rgba(0,0,0,0.11) 60%, rgba(0,0,0,0) 80%),
+    linear-gradient(90deg,
+      rgba(0,0,0,0.44) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0) 32%,
+      rgba(0,0,0,0) 68%, rgba(0,0,0,0.12) 86%, rgba(0,0,0,0.44) 100%);
+}
+
+/* countdown, inside the niche and above the veil so it stays legible */
+.mihrab-inscription {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 26%;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+}
+.mihrab-inscription .mihrab-inscription-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  /* Hard-coded, not derived from --text-muted. The recess stays dark in BOTH
+     themes, but --text-muted flips to #6b5f4d in light — which landed at
+     2.4:1 against the recess. This sits at ~7:1 in both. */
+  color: #b7ab93;
+}
+.mihrab-inscription .mihrab-inscription-time {
+  margin-top: 0.2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  /* Scales with the niche: at the 216px floor a day-count string overflowed. */
+  font-size: clamp(1.02rem, 6.2cqw, 1.5rem);
+  line-height: 1.2;
+  color: #e0bd60;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the rim: static, carved, deliberately NOT clipped so its
+     1.25px stroke straddles the clip seam and hides any rasterisation step */
+.mihrab-geo {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter:
+    drop-shadow(0 1px 0 rgba(246, 226, 184, 0.09))
+    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.52));
+}
+.mihrab-geo-rim {
+  fill: none;
+  stroke: var(--rim-line);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+/* the arch lip catching light. Its own element precisely because
+   .mihrab-geo is filtered — animating inside that would re-run the
+   drop-shadow 30x/s. Never give this a filter. */
+.mihrab-rim-hot {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transform: translateZ(0);
+  opacity: calc((var(--L) * 0.34 + var(--K) * 0.42) * var(--g));
+}
+.mihrab-rim-hot path {
+  fill: none;
+  stroke: var(--rim-hot-col);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------- girih frame band around the WALL (rectilinear — never
+     traces the arch). Two linear gradients make the ring, so no
+     mask-composite is needed and support is universal. ---------- */
+.mihrab-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right,
+      var(--pattern-color) 0 10px, transparent 10px calc(100% - 10px),
+      var(--pattern-color) calc(100% - 10px) 100%),
+    linear-gradient(to bottom,
+      var(--pattern-color) 0 10px, transparent 10px calc(100% - 10px),
+      var(--pattern-color) calc(100% - 10px) 100%);
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
+  -webkit-mask-repeat: repeat;
+          mask-repeat: repeat;
+  -webkit-mask-size: 40px 40px;
+          mask-size: 40px 40px;
+  -webkit-mask-position: center;
+          mask-position: center;
+}
+
+/* the step you cross. Edge fade comes from the background gradient, not
+   a second mask layer — again to avoid mask-composite. */
+.mihrab-threshold {
+  height: 18px;
+  width: min(calc(var(--niche-w) + 40px), 100%);
+  margin: 8px auto 0;
+  background-image: linear-gradient(90deg,
+    transparent, var(--pattern-color) 12%, var(--pattern-color) 88%, transparent);
+  -webkit-mask-image: url('/img/pattern-girih.svg');
+          mask-image: url('/img/pattern-girih.svg');
+  -webkit-mask-repeat: repeat-x;
+          mask-repeat: repeat-x;
+  -webkit-mask-size: 40px 40px;
+          mask-size: 40px 40px;
+  -webkit-mask-position: center;
+          mask-position: center;
+}
+
+/* spandrel rosettes — desktop only, out in the wall beside the crown.
+   A 56px medallion in the niche's own spandrel would cross the arch by
+   3.5px; out here there is 124px of margin and it reads as a portal roundel. */
+.mihrab-rosette { display: none; }
+
+/* ---------- plaque: status, listeners, elapsed ---------- */
+.mihrab-plaque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 10px 1rem 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.mihrab-plaque > * { unicode-bidi: isolate; }  /* keeps 04:31 LTR inside RTL text */
+.mihrab-plaque .status { margin: 0; }
+.mihrab-plaque .dot { animation: none; }       /* the lamp is the pulse now */
+#mihrab[data-state="live"] .mihrab-plaque .dot {
+  background: var(--live);
+  box-shadow: 0 0 6px var(--live-glow);
+}
+/* Keyed to the label, not [data-state="live"]: while live, #status-text can
+   also hold "Tap anywhere to start audio", and 0.18em tracking on 26 characters
+   wrapped the plaque onto extra lines. */
+#status-text.status-live-label {
+  color: var(--live);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+.mihrab-meta { font-variant-numeric: tabular-nums; }
+.mihrab-sep { opacity: 0.45; }
+#mihrab:not([data-state="live"]) .mihrab-sep,
+#mihrab:not([data-state="live"]) .mihrab-elapsed { display: none; }
+#mihrab #offline-msg { padding: 0.4rem 1rem 0; font-size: 0.8rem; text-align: center; }
+#mihrab audio { display: none; }
+
+/* ---------- volume ---------- */
+.mihrab-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 26rem;
+  margin-inline: auto;
+  padding: 0.5rem 1rem 0;
+}
+.mihrab-volume-icon { font-size: 0.9rem; line-height: 1; }
+.mihrab-volume-track { position: relative; flex: 1; display: flex; align-items: center; }
+.mihrab-volume-track::after {          /* the 100% boost threshold */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background: color-mix(in oklab, var(--gold) 55%, transparent);
+  pointer-events: none;
+}
+/* accent-color is inert here — style.css sets -webkit-appearance:none and
+   paints the thumb explicitly, so the pseudo-elements have to be overridden. */
+.mihrab-volume input[type="range"] { flex: 1; width: 100%; cursor: pointer; }
+.mihrab-volume input[type="range"]::-webkit-slider-thumb { background: var(--gold); }
+.mihrab-volume input[type="range"]::-moz-range-thumb { background: var(--gold); }
+.mihrab-volume-val {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2rem;
+  text-align: end;
+}
+
+/* ---------- ember breath: the group-opacity heartbeat. Runs on the
+     compositor, independent of the 30Hz main-thread writes, and composes
+     with the per-shell formulas instead of overriding them. ---------- */
+@keyframes mihrab-ember-breath {
+  0%, 100% { opacity: var(--breath-lo); }
+  50%      { opacity: var(--breath-hi); }
+}
+@keyframes mihrab-ember-swell {
+  0%, 100% { transform: translateZ(0) scale(1.00); }
+  50%      { transform: translateZ(0) scale(1.06); }
+}
+
+/* ---------- states ---------- */
+#mihrab[data-state="live"] {
+  /* The resting floor is keyed off the STATE, not the signal: the room
+     really is live, so the niche stays warm through any length of silence.
+     Flooring the signal instead would lie about the audio. */
+  --Bf: max(var(--B), var(--mihrab-rest));
+}
+/* An empty lit niche is the strongest reading of the concept, and a countdown
+   to the next broadcast is noise while one is already playing. */
+#mihrab[data-state="live"] .mihrab-inscription { display: none; }
+#mihrab[data-state="connecting"] {
+  --mihrab-gain: 0.42;
+  --breath-dur: 2.4s;   /* faster reads as searching, not resting */
+  --breath-lo: 0.55;
+  --breath-hi: 0.95;
+}
+#mihrab[data-state="offline"] { --mihrab-gain: 0.12; }  /* unlit, but the niche remembers */
+#mihrab[data-state="offline"] .mihrab-glow { animation: none; opacity: 1; }
+
+/* Scrolled out of view: stop the breath. It runs independently of the rAF loop,
+   so without this it keeps animating — and re-blurring the fixed bottom nav —
+   for a component nobody can see. */
+#mihrab.mihrab--offscreen .mihrab-glow,
+#mihrab.mihrab--offscreen .mihrab-g-core,
+#mihrab.mihrab--offscreen .mihrab-g-halo { animation-play-state: paused; }
+
+/* analyser unavailable: JS stops writing, CSS carries the whole appearance */
+#mihrab.mihrab--unmetered { --L: 0.42; --B: 0.50; --breath-lo: 0.72; --breath-hi: 0.94; }
+#mihrab.mihrab--unmetered .mihrab-g-core { animation: mihrab-ember-swell calc(var(--breath-dur) * 0.78) ease-in-out infinite; }
+#mihrab.mihrab--unmetered .mihrab-g-halo { animation: mihrab-ember-swell var(--breath-dur) ease-in-out infinite; }
+
+/* reduced motion: a statically lit niche, not a frozen one.
+   JS writes a level once and never starts the loop. */
+#mihrab[data-motion="reduced"] .mihrab-glow,
+#mihrab[data-motion="reduced"] .mihrab-g-core,
+#mihrab[data-motion="reduced"] .mihrab-g-halo { animation: none; }
+#mihrab[data-motion="reduced"] .mihrab-glow { opacity: 0.92; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mihrab-glow, .mihrab-g-core, .mihrab-g-halo { animation: none !important; }
+  .mihrab-glow { opacity: 0.92; }
+  .mihrab-g-core, .mihrab-g-halo { will-change: auto; }   /* the only two that set it */
+}
+
+@supports not (mix-blend-mode: screen) {
+  .mihrab-glow, .mihrab-glow > *, .mihrab-rim-hot { mix-blend-mode: normal; }
+  .mihrab-veil { display: none; }
+}
+
+/* Share is a sibling of the reactions group, not a member of it, so screen
+   readers don't announce it as a fifth reaction. Visually still one row.
+   (Deliberately NOT display:contents on the group — that has a history of
+   dropping the role from the accessibility tree.) */
+.mihrab-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+}
+.mihrab-actions-row .reactions { margin: 0; }
+.mihrab-share-row { display: flex; align-items: center; }
+.uc-listeners-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.uc-listeners-list.hidden { display: none; }
+
+/* ---------- floating reactions rise inside the niche and clip on the arch ---------- */
+#mihrab-niche .float-reaction {
+  position: absolute;
+  font-size: 1.4rem;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+  animation: mihrab-reaction-rise 1.6s ease-out forwards;
+}
+@keyframes mihrab-reaction-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(0.7); }
+  14%  { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-78%) scale(1.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #mihrab-niche .float-reaction { animation: mihrab-reaction-fade 1s ease-out forwards; }
+  @keyframes mihrab-reaction-fade { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; } }
+}
+
+/* ---------- light theme ----------
+   The recess stays genuinely dark. A recess IS dark — that is what a recess
+   is. It is also what stops the niche reading as a failed-to-load image:
+   `screen` behaves identically over a dark backdrop whatever the wall does.
+   Only the wall changes theme; the flame never does. */
+[data-theme="light"] #mihrab {
+  --mihrab-theme-gain: 0.90;   /* NOT --mihrab-gain — see the note on --g above */
+  --veil-base: 0.40;
+  /* The idle floor has to be lifted here, not shared with dark. Light runs a
+     lower gain AND a heavier veil, and its surround is far brighter — the same
+     resting values that read as a dim lamp on #14110d read as an empty hole on
+     #f7f1e3. Peaks are driven by --L and are unaffected. */
+  --mihrab-rest: 0.30;
+  --core-base: 0.42;
+  --wall-1: #f0e5cf;
+  --wall-2: #e6d8ba;
+  --wall-3: #dbcaa6;
+  /* Lifted from #3a2a17/#1d1509/#120c05: against a #f7f1e3 page the darker
+     set read as a failed-to-load image rather than a recess. Still genuinely
+     dark — a recess IS dark, and `screen` needs a dark backdrop to work — just
+     warm enough to read as sunlit stone bouncing a little light in. */
+  --recess-1: #4a3620;
+  --recess-2: #2a1e0f;
+  --recess-3: #1a1108;
+  --rim-line: rgba(58, 40, 18, 0.38);
+  --rim-hot-col: rgba(255, 244, 214, 0.88);
+  background: linear-gradient(180deg, var(--wall-1) 0%, var(--wall-2) 58%, var(--wall-3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+[data-theme="light"] .mihrab-soffit {
+  background:
+    linear-gradient(180deg,
+      rgba(0,0,0,0) 50.30%, rgba(240,206,142,0.042) 51.36%, rgba(0,0,0,0) 52.50%),
+    radial-gradient(132% 56% at 50% -6%,
+      rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.46) 34%,
+      rgba(0,0,0,0.17) 60%, rgba(0,0,0,0) 80%);
+}
+/* The plaque moved off --surface (6.0:1) onto the wall gradient, where the
+   theme's own muted colour falls to 3.9:1 at 13px. Darkened for AA.
+   --live is scoped warm HERE ONLY: a red LIVE dot beside a gold lamp reads as a
+   fault, but changing the token globally regressed org-landing, communities and
+   broadcast (see the :root[data-theme="light"] note). #6b4707 measures 5.14:1
+   against the darkest point of the wall gradient. */
+[data-theme="light"] #mihrab {
+  --live: #6b4707;
+  --live-glow: rgba(107, 71, 7, 0.28);
+}
+[data-theme="light"] .mihrab-plaque { color: #554a3a; }
+
+[data-theme="light"] .mihrab-geo {
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55))
+    drop-shadow(0 8px 18px rgba(74, 52, 20, 0.30));
+}
+/* --pattern-color in light is rgba(15,69,48,0.14) — too faint on sandstone */
+[data-theme="light"] .mihrab-frame,
+[data-theme="light"] .mihrab-threshold {
+  --pattern-color: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+/* ---------- desktop ---------- */
+@media (min-width: 768px) {
+  #mihrab { --mihrab-nonniche: 356px; padding: 18px 0; }
+  .mihrab-head { padding-inline: 1.25rem; gap: 0.9rem; }
+  .mihrab-head .room-logo { width: 40px; height: 40px; }
+  .mihrab-head h2 { font-size: 1.35rem; }
+  .mihrab-head .room-desc { -webkit-line-clamp: 2; font-size: 0.85rem; }
+  .mihrab-frame {
+    background-image:
+      linear-gradient(to right,
+        var(--pattern-color) 0 12px, transparent 12px calc(100% - 12px),
+        var(--pattern-color) calc(100% - 12px) 100%),
+      linear-gradient(to bottom,
+        var(--pattern-color) 0 12px, transparent 12px calc(100% - 12px),
+        var(--pattern-color) calc(100% - 12px) 100%);
+    -webkit-mask-size: 46px 46px;
+            mask-size: 46px 46px;
+  }
+  .mihrab-threshold {
+    height: 22px;
+    -webkit-mask-size: 46px 46px;
+            mask-size: 46px 46px;
+  }
+}
+
+/* Rosettes need 90px of wall beside the 296px aperture. Between 768 and 899px
+   the main panel is only 420-544px wide, leaving 62px — the medallion would be
+   clipped by `contain: paint`. Measured: -28px at 768. So they start at 900. */
+@media (min-width: 900px) {
+  .mihrab-rosette {
+    display: block;
+    position: absolute;
+    z-index: 5;
+    top: 16%;
+    width: 56px;
+    height: 56px;
+    pointer-events: none;
+    opacity: 0.85;
+    -webkit-mask-image: url('/img/medallion.svg');
+            mask-image: url('/img/medallion.svg');
+    -webkit-mask-size: 56px 56px;
+            mask-size: 56px 56px;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+  }
+  /* --pattern-color is only 0.18 alpha; over the dark wall that plus the 0.85
+     opacity left the medallions barely visible in the PRIMARY theme. */
+  .mihrab-rosette { background-color: color-mix(in oklab, var(--gold) 34%, transparent); }
+  [data-theme="light"] .mihrab-rosette { background-color: color-mix(in oklab, var(--accent) 22%, transparent); }
+  .mihrab-rosette--l { inset-inline-start: -90px; }
+  .mihrab-rosette--r { inset-inline-end: -90px; }
+}

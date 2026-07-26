@@ -25,14 +25,18 @@
   <meta name="twitter:description" content="Listen to live broadcasts from your mosque community.">
   <meta name="twitter:image" content="https://ummahcast.com/og-image.png">
     <script>if(["ar","ur","he","fa"].includes(navigator.language?.split("-")[0]))document.documentElement.dir="rtl";</script>
-  <link rel="stylesheet" href="/css/style.css?v=22">
+  <link rel="stylesheet" href="/css/style.css?v=23">
   <link rel="stylesheet" href="/css/recording-player.css?v=6">
   <script src="/js/theme.js"></script>
   <script src="/js/analytics.js" defer></script>
   <script src="/js/actions.js" defer></script>
   <style>
     .page { display: flex; gap: 1rem; max-width: 860px; width: 100%; }
-    .main-panel { flex: 1; }
+    /* .hidden lives in style.css, which loads first — without this the
+       later single-class .page rule wins and the player renders on top of
+       the name prompt. Two classes outranks one. */
+    .page.hidden { display: none; }
+    .main-panel { flex: 1; min-width: 0; }
     .side-panel { width: 300px; display: flex; flex-direction: column; gap: 1rem; }
     .chat-panel { display: flex; flex-direction: column; flex: 1; }
     .chat-messages { flex: 1; overflow-y: auto; max-height: 300px; padding: 0.75rem; font-size: 0.85rem; }
@@ -43,10 +47,13 @@
     .chat-input input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; color: var(--text); font-size: 0.85rem; font-family: inherit; }
     .chat-input input:focus { outline: none; border-color: var(--accent); }
     .chat-input button { width: auto; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
-    .reactions { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+    .reactions { display: flex; justify-content: center; align-items: center; gap: 0.75rem; margin-top: 0; }
     .reactions button { width: auto; padding: 0.5rem 0.75rem; font-size: 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; transition: transform 0.1s; position: relative; }
     .reactions button:active { transform: scale(1.3); }
     .reactions button .count { font-size: 0.65rem; position: absolute; top: -6px; right: -6px; background: var(--accent); color: white; border-radius: 50%; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+    /* .hidden is one class and loses to the rule above, so every counter sat
+       there showing "0" until its first reaction. Two classes wins. */
+    .reactions button .count.hidden { display: none; }
     .room-logo { width: 48px; height: 48px; border-radius: var(--radius); object-fit: cover; }
     .room-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
     .schedule-item { font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
@@ -56,9 +63,11 @@
     .name-prompt { text-align: center; }
     .name-prompt input, .password-prompt input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; color: var(--text); font-size: 0.9rem; width: 200px; text-align: center; margin-bottom: 0.75rem; font-family: inherit; }
     .name-prompt input:focus, .password-prompt input:focus { outline: none; border-color: var(--accent); }
+    /* Reactions now rise inside the niche — see #mihrab-niche .float-reaction
+       in style.css. This is the fallback for anything appended to body. */
     .float-reaction { position: fixed; font-size: 1.5rem; pointer-events: none; animation: floatUp 1.5s ease-out forwards; z-index: 999; }
     @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-120px) scale(1.5); } }
-    @media (max-width: 640px) { .page { flex-direction: column; } .side-panel { width: 100%; } }
+    @media (max-width: 640px) { .page { flex-direction: column; } .side-panel { width: 100%; } .chat-messages { max-height: 240px; } }
   </style>
 </head>
 <body>
@@ -80,67 +89,131 @@
   <!-- Player -->
   <div class="page hidden" id="player-screen">
     <div class="main-panel">
-      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
-        <img class="room-logo hidden" id="room-logo" src="" alt="">
-        <h2 style="margin:0;" id="room-name"></h2>
-      </div>
-      <div class="room-desc hidden" id="room-desc"></div>
 
-      <div class="card">
-        <div class="status" id="status">
-          <div class="dot" id="dot"></div>
-          <span id="status-text">Connecting...</span>
+      <!-- ============ THE MIHRAB ============
+           A prayer niche rendered in true geometry, lit by the broadcaster's
+           voice. The decorative layers are individually aria-hidden (not the
+           niche itself — the countdown lives inside it); #status below carries
+           the state for assistive tech. -->
+      <section id="mihrab" data-state="connecting">
+
+        <div class="mihrab-frame" aria-hidden="true"></div>
+
+        <div class="mihrab-head">
+          <img class="room-logo hidden" id="room-logo" src="" alt="">
+          <div class="mihrab-head-text">
+            <h2 id="room-name"></h2>
+            <div class="room-desc hidden" id="room-desc"></div>
+          </div>
         </div>
+
+        <div class="mihrab-aperture">
+          <!-- Two-centred pointed arch. Half-width a=148, R=196, so the rise
+               is h=sqrt(a(2R-a))=190.032 — springline at 51.36% of height.
+               Tangent is vertical at the springing and 75.85° from horizontal
+               at the apex, which is the shallowest point on the curve — still
+               steep enough that the rasterised clip steps at most ~0.25px per
+               row, and the unclipped 1.25px rim straddles the seam anyway. -->
+          <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+            <defs>
+              <clipPath id="mihrab-arch-clip" clipPathUnits="objectBoundingBox">
+                <path d="M 0 1 L 0 0.5136 A 0.662162 0.529730 0 0 1 0.5 0 A 0.662162 0.529730 0 0 1 1 0.5136 L 1 1 Z"/>
+              </clipPath>
+            </defs>
+          </svg>
+
+          <!-- aria-hidden goes on the decorative layers individually, NOT on the
+               niche: the countdown lives in here, and aria-hidden inherits down
+               the whole subtree, which would delete it from the a11y tree. -->
+          <div id="mihrab-niche">
+            <div class="mihrab-recess" aria-hidden="true"></div>
+            <div class="mihrab-soffit" aria-hidden="true"></div>
+            <!-- the light. DOM order vs .mihrab-veil is load-bearing. -->
+            <div class="mihrab-glow" aria-hidden="true">
+              <div class="mihrab-g-pool"></div>
+              <div class="mihrab-g-bloom"></div>
+              <div class="mihrab-g-halo"></div>
+              <div class="mihrab-g-core"></div>
+              <div class="mihrab-g-core-hot"></div>
+            </div>
+            <div class="mihrab-veil" aria-hidden="true"></div>
+            <div class="mihrab-inscription hidden" id="countdown-banner">
+              <div class="mihrab-inscription-title" id="countdown-title"></div>
+              <div class="mihrab-inscription-time" id="countdown-timer"></div>
+            </div>
+          </div>
+
+          <svg class="mihrab-geo" viewBox="0 0 296 370" preserveAspectRatio="none"
+               shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
+            <path class="mihrab-geo-rim" d="M 0 370 L 0 190.032 A 196 196 0 0 1 148 0 A 196 196 0 0 1 296 190.032 L 296 370"/>
+          </svg>
+          <svg class="mihrab-rim-hot" viewBox="0 0 296 370" preserveAspectRatio="none"
+               shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
+            <path d="M 0 370 L 0 190.032 A 196 196 0 0 1 148 0 A 196 196 0 0 1 296 190.032 L 296 370"/>
+          </svg>
+
+          <div class="mihrab-rosette mihrab-rosette--l" aria-hidden="true"></div>
+          <div class="mihrab-rosette mihrab-rosette--r" aria-hidden="true"></div>
+        </div>
+
+        <div class="mihrab-threshold" aria-hidden="true"></div>
+
+        <div class="mihrab-plaque">
+          <div class="status" id="status" role="status">
+            <div class="dot" id="dot"></div>
+            <span id="status-text">Connecting…</span>
+          </div>
+          <div class="mihrab-meta"><span id="listener-count">0</span> listening</div>
+          <span class="mihrab-sep" aria-hidden="true">·</span>
+          <div class="mihrab-meta mihrab-elapsed"><span id="elapsed">00:00</span></div>
+        </div>
+
+        <div class="stream-msg hidden" id="offline-msg">Stream is offline — you'll hear it when it starts</div>
 
         <div id="player-area">
           <audio id="audio" autoplay>Your browser does not support audio playback.</audio>
-          <canvas id="vu-canvas" width="320" height="48" aria-hidden="true"
-            style="width:100%; max-width:100%; height:48px; display:block; margin:0.5rem 0; border-radius:8px; background:transparent;"></canvas>
-          <div class="volume-row" style="display:flex; align-items:center; gap:0.5rem; margin-block:0.75rem;">
-            <label for="volume-slider" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">🔊</label>
-            <input type="range" id="volume-slider" min="0" max="200" value="100" step="5"
-              aria-label="Volume"
-              style="flex:1; accent-color:var(--accent); cursor:pointer;">
-            <span id="volume-label" style="font-size:0.8rem; color:var(--text-muted); min-width:35px;">100%</span>
+          <div class="mihrab-volume">
+            <label class="mihrab-volume-icon" for="volume-slider">🔊</label>
+            <span class="mihrab-volume-track">
+              <input type="range" id="volume-slider" min="0" max="200" value="100" step="5" aria-label="Volume">
+            </span>
+            <span class="mihrab-volume-val" id="volume-label">100%</span>
           </div>
         </div>
-        <div class="stream-msg hidden" id="offline-msg">Stream is offline — you'll hear it when it starts</div>
+      </section>
 
-        <div style="display:flex; justify-content:center; margin-top:0.75rem;">
-          <button id="btn-share-listen" class="btn-secondary" data-action="shareStream" aria-label="Share stream link"
-            style="width:auto; padding:0.4rem 1rem; font-size:0.85rem; border-radius:999px;">
-            📤 Share
-          </button>
-        </div>
-
-        <div class="reactions" id="reactions" role="group" aria-label="Reactions">
-          <button data-action="react" data-arg="dua" aria-label="React with dua">🤲<span class="count hidden" id="c-dua" aria-hidden="true">0</span></button>
-          <button data-action="react" data-arg="mosque" aria-label="React with mosque">🕌<span class="count hidden" id="c-mosque" aria-hidden="true">0</span></button>
-          <button data-action="react" data-arg="tasbih" aria-label="React with tasbih">📿<span class="count hidden" id="c-tasbih" aria-hidden="true">0</span></button>
-          <button data-action="react" data-arg="crescent" aria-label="React with crescent">☪️<span class="count hidden" id="c-crescent" aria-hidden="true">0</span></button>
-        </div>
-
-        <div class="stats">
-          <div>Listeners: <span id="listener-count">0</span></div>
-          <div>Time: <span id="elapsed">00:00</span></div>
+      <div class="card">
+        <div class="mihrab-actions-row">
+          <div class="reactions" id="reactions" role="group" aria-label="Reactions">
+            <button data-action="react" data-arg="dua" aria-label="React with dua">🤲<span class="count hidden" id="c-dua" aria-hidden="true">0</span></button>
+            <button data-action="react" data-arg="mosque" aria-label="React with mosque">🕌<span class="count hidden" id="c-mosque" aria-hidden="true">0</span></button>
+            <button data-action="react" data-arg="tasbih" aria-label="React with tasbih">📿<span class="count hidden" id="c-tasbih" aria-hidden="true">0</span></button>
+            <button data-action="react" data-arg="crescent" aria-label="React with crescent">☪️<span class="count hidden" id="c-crescent" aria-hidden="true">0</span></button>
+          </div>
+          <!-- Share sits outside role="group" so it isn't announced as a reaction. -->
+          <div class="mihrab-share-row">
+            <button id="btn-share-listen" class="btn-secondary" data-action="shareStream" aria-label="Share stream link"
+              style="width:auto; padding:0.4rem 1rem; font-size:0.85rem; border-radius:999px;">
+              📤 Share
+            </button>
+          </div>
         </div>
 
         <div id="listeners-panel" style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border);">
-          <div class="collapsible-header" id="listeners-toggle">
+          <div class="collapsible-header" id="listeners-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="listeners-list">
             <span style="font-size:0.85rem; font-weight:600;">👤 Who's Listening</span>
-            <span class="chevron">▼</span>
+            <span class="chevron" aria-hidden="true">▼</span>
           </div>
-          <div id="listeners-list" class="hidden" style="display:flex; flex-wrap:wrap; gap:0.35rem;"></div>
+          <!-- The flex layout is a class, not an inline style: inline beat
+               .hidden, so collapsing left the list visible while
+               aria-expanded said false. -->
+          <div id="listeners-list" class="hidden uc-listeners-list"></div>
         </div>
       </div>
 
-      <!-- Schedule with countdown -->
+      <!-- Schedule. The countdown itself is rendered inside the niche above. -->
       <div class="card hidden" id="schedule-card">
         <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.5rem;">Upcoming</div>
-        <div id="countdown-banner" class="hidden" style="text-align:center; padding:0.75rem; margin-bottom:0.75rem; background:var(--bg); border-radius:var(--radius);">
-          <div style="font-size:0.85rem; color:var(--text-muted);" id="countdown-title"></div>
-          <div style="font-size:1.5rem; font-weight:700; color:var(--accent); margin-top:0.25rem;" id="countdown-timer"></div>
-        </div>
         <div id="schedule-list"></div>
       </div>
 
@@ -171,7 +244,7 @@
   <script src="/js/ui.js"></script>
   <script src="/js/recording-player.js?v=2"></script>
   <script>renderNav('listen');</script>
-  <script src="/js/listen.js?v=3"></script>
+  <script src="/js/listen.js?v=4"></script>
 <script src="/js/bottom-nav.js"></script>
 <script src="/js/footer.js"></script>
 </body>
